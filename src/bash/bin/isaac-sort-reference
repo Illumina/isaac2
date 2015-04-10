@@ -1,0 +1,166 @@
+#!/bin/bash
+################################################################################
+##
+## Isaac Genome Alignment Software
+## Copyright (c) 2010-2014 Illumina, Inc.
+## All rights reserved.
+##
+## This software is provided under the terms and conditions of the
+## Illumina Public License 1
+##
+## You should have received a copy of the Illumina Public License 1
+## along with this program. If not, see
+## <https://github.com/sequencing/licenses/>.
+##
+################################################################################
+##
+## file isaac-sort-reference
+##
+## Sort and annotate reference so that it can be used with iSAAC
+##
+## author Roman Petrovski
+##
+################################################################################
+
+#set -x
+set -o pipefail
+shopt -s compat31 2>/dev/null
+
+SORT_REFERENCE_MK=@iSAAC_HOME@@iSAAC_FULL_DATADIR@/makefiles/reference/SortReference.mk
+GRID_SHELL=@iSAAC_HOME@@iSAAC_FULL_LIBEXECDIR@/gridShell.sh
+
+jobs=
+dryRun=''
+logLevel=2
+# 0-bit mask provides best performance. otherwise kmers need to be regenerated and scanned against
+# position data for very mask
+maskWidth=0
+
+# neighborhoodDistance is hard-coded to 2. In the future it might make sense to allow 3 as well, but this currently
+# requires extra code in annotation workflow.
+neighborhoodDistance=2
+
+# These defaults provide reasonable sensitivity for 100 bases long reads. Notice that all seeds must be divisible by 4 
+# for neighborhoodDistance in current implementation of neighbor finding.
+annotationSeedLengths='16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80'
+
+seedLengths='32'
+genomeFile=''
+outputDirectory=./iSAACIndex.$(date +%Y%m%d)
+help=''
+repeatThreshold=1000
+qrsh_cmd=''
+target=all
+
+isaac_sort_reference_usage()
+{
+    cat <<EOF
+Usage: $0 [options]
+Options:
+  -g [ --genome-file ] arg                              Path to fasta file containing the reference contigs 
+  -h [ --help ]                                         Print this message
+  -j [ --jobs ] arg (=$jobs)                                 Maximum number of parallel operations. Leave empty for 
+                                                        unlimited parallelization on grid. It is recommended to keep 1
+                                                        for single-node execution
+  -n [ --dry-run ]                                      Don't actually run any commands; just print them
+  -o [ --output-directory ] arg ($outputDirectory) Location where the results are stored
+  -q [ --quiet ]                                        Avoid excessive logging
+  -s [ --seed-lengths ] arg (=$seedLengths)                       Space-separated k-mer lengths for use with alignment. 
+                                                        Supported: 16,28,30,32,34,36,64
+  -t [ --repeat-threshold ] arg (=$repeatThreshold)                 Repeat cutoff after which individual kmer positions 
+                                                        are not stored
+  -v [ --version ]                                      Only print version information
+  -w [ --mask-width ] arg (=$maskWidth)                          Number of high order bits to use for splitting the data for 
+                                                        parallelization. Notice that values greater than 0 drammatically
+                                                        slow down neighbor finding as they introduce a substantial amount
+                                                        of I/O. For Homo Sapiens genome there is no need to change -w if
+                                                        the amount of RAM on the node is 150 Gb or greater.
+  --annotation-seed-lengths arg (=$annotationSeedLengths)
+                                                        Space-separated k-mer lengths for annotation generation. Go down 
+                                                        to 16 to have a bit more sensitivity in unique parts of the 
+                                                        genome when input data is noisy. Go up to 128 to allow better 
+                                                        anchoring in less unique regions if longer read length is expected. 
+                                                        Notice that all seeds must be divisible by 4 with current 
+                                                        implementation of neighbor finding.
+  --dont-annotate                                       Don't search for neighbors
+  --qrsh-cmd arg (=)                                    Command to execute given command line on a grid node. Example:
+                                                            --qrsh-cmd 'qrsh -cwd -v PATH -now no -l wholenode=TRUE'
+  --target arg ($target)                                    Individual target to make
+EOF
+}
+
+isaac_sort_reference_version()
+{
+    echo @iSAAC_VERSION_FULL@
+}
+
+while (( ${#@} )); do
+	param=$1
+	shift
+    if [[ $param == "--mask-width" || $param == "-w" ]]; then
+        maskWidth=$1
+        shift
+    elif [[ $param == "--genome-file" || $param == "-g" ]]; then
+        genomeFile=$(cd $(dirname "$1") && pwd)/$(basename "$1")
+        shift
+    elif [[ $param == "--dont-annotate" ]]; then
+        annotationSeedLengths=''
+    elif [[ $param == "--dry-run" || $param == "-n" ]]; then
+        dryRun='-n'
+    elif [[ $param == "--output-directory" || $param == "-o" ]]; then
+        outputDirectory=$1
+        shift
+    elif [[ $param == "--repeat-threshold" || $param == "-t" ]]; then
+        repeatThreshold=$1
+        shift
+    elif [[ $param == "--qrsh-cmd" ]]; then
+        qrsh_cmd=$1
+        shift
+    elif [[ $param == "--jobs" || $param == "-j" ]]; then
+        jobs=$1
+        shift
+    elif [[ $param == "--seed-lengths" || $param == "-s" ]]; then
+        seedLengths=$1
+        shift
+    elif [[ $param == "--annotation-seed-lengths" ]]; then
+        annotationSeedLengths=$1
+        shift
+    elif [[ $param == "--target" ]]; then
+        target=$1
+        shift
+    elif [[ $param == "--help" || $param == "-h" ]]; then
+        help=yes
+    elif [[ $param == "--version" || $param == "-v" ]]; then
+        isaac_sort_reference_version
+        exit 1
+    elif [[ $param == "--quiet" || $param == "-q" ]]; then
+        logLevel=1
+    else
+        echo "ERROR: unrecognized argument: $param" >&2
+        exit 2
+    fi
+done
+
+annotationSeedLengths=$(echo "$seedLengths $annotationSeedLengths" |tr " " "\n"|sort|uniq|tr "\n" " ")
+
+
+[[ "" == "$outputDirectory" || "" == "$genomeFile" ]] && isaac_sort_reference_usage && echo "ERROR: --output-directory and --genome-file arguments are mandatory" >&2 && exit 2
+
+[[ ! -e "$genomeFile" ]] && echo "ERROR: File not found: '$genomeFile'" && exit 2
+
+# When running locally, use -j 1 to avoid multiple annotation processes competing over CPU and RAM 
+[[ -z "$qrsh_cmd" ]] && [[ -z "$jobs" ]] && jobs=1
+
+[[ -n "$help" ]] && isaac_sort_reference_usage && exit 1
+
+outputDirectory=$(mkdir -p "$outputDirectory" && (cd "$outputDirectory" && pwd)) || exit 2
+
+gridShell="LOG_SHELL:=${GRID_SHELL}"
+[[ -z "$qrsh_cmd" ]] && gridShell=''
+
+QRSH_CMD="$qrsh_cmd" make $dryRun -j $jobs \
+    -f ${SORT_REFERENCE_MK} \
+    -C $outputDirectory \
+    GENOME_FILE:=$genomeFile ANNOTATION_MASK_WIDTH:=$maskWidth MASK_WIDTH:=$maskWidth SEED_LENGTHS:="${seedLengths}" iSAAC_LOG_LEVEL:=$logLevel \
+    REPEAT_THRESHOLD:=$repeatThreshold NEIGHBORHOOD_DISTANCE:=$neighborhoodDistance ANNOTATION_SEED_LENGTHS:="${annotationSeedLengths}" $target \
+    $gridShell || exit 2

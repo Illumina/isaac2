@@ -1,0 +1,73 @@
+<SortedReference>
+    <FormatVersion><!-- version of the format. iSAAC will check if it is compatible. --></FormatVersion>
+    <SoftwareVersion><!-- version of the software that produced the sorted reference --></SoftwareVersion>
+    <Contigs>
+        <Contig Position="0-based genomic position of the first base">
+            <Index>
+                <!-- 0-based index of the contig. This matches to the index in ReferencePosition-->
+            </Index>
+            <Name>
+                <!--contig name-->
+            </Name>
+            <Sequence>
+                <Format>
+                    <!--fasta|2bpb-->
+                </Format>
+                <File>
+                    <!-- file path to Sequence-->
+                </File>
+                <Offset>
+                    <!--byte offset of the first base from the start of the stream-->
+                </Offset>
+                <Size>
+                    <!--byte size of the data containing at least TotalBases (may vary for text files depending on newline encoding)-->
+                </Size>
+            </Sequence>
+            <Circular>
+                <!--yes|no-->
+            </Circular>
+            <TotalBases>
+                <!--contig length in bases-->
+            </TotalBases>
+            <AcgtBases>
+                <!--number of ACGT bases-->
+            </AcgtBases>
+            <KaryotypeIndex>
+                <!-- 0-based karyotype index of the contig. This is the order in which contigs are present
+                in the bam file header -->
+            </KaryotypeIndex>
+            <BamMetadata>
+                <!-- Metadata that will be copied into the bam files produced from the Contig. 
+                     See http://www.ebi.ac.uk/ena/about/archive_cram_format_1_0 -->
+                <Sq>
+                    <As></As>
+                    <Ur></Ur>
+                    <M5></M5>
+                </Sq>
+            </BamMetadata>
+        </Contig>
+    </Contigs>
+    <Permutations>
+        <Permutation Name="ABCD">
+            <Masks Width="6" 
+             SeedLength="32"> <!-- length of the reference kmer in bases. Currently 16, 32 or 64-->
+                <Mask Mask="1">
+                    <File>
+                        <!-- file path to the sorted permutated kmers matching the Mask (after permutation)-->
+                    </File>
+                    <Kmers>
+                        <Total></Total>
+                    </Kmers>
+                </Mask>
+            </Masks>
+        </Permutation>
+    </Permutations>
+    <Annotations>
+        <Annotation Type="k-uniqueness" K="2">
+            <Format>16bpb</Format>
+            <File>
+                <!-- path to annotation file-->
+            </File>
+        </Annotation>
+    </Annotations>
+</SortedReference>

@@ -1,0 +1,387 @@
+#!/bin/bash
+################################################################################
+##
+## Isaac Genome Alignment Software
+## Copyright (c) 2010-2014 Illumina, Inc.
+## All rights reserved.
+##
+## This software is provided under the terms and conditions of the
+## Illumina Public License 1
+##
+## You should have received a copy of the Illumina Public License 1
+## along with this program. If not, see
+## <https://github.com/sequencing/licenses/>.
+##
+################################################################################
+##
+## file configure
+##
+## Top level configuration file
+##
+## author Come Raczy
+##
+################################################################################
+
+#set -x
+set -o pipefail
+shopt -s compat31 2>/dev/null
+
+ISAAC_DEFAULT_NUMA_DIR=/usr
+
+# Display iSAAC configure usage
+isaac_usage()
+{
+    cat <<EOF
+Usage: $0 [options]
+Options: [defaults in brackets after descriptions]
+Configuration:
+  --build-type                specify the build type for CMake (affects compiler
+                              options). Allowed values are "", "Debug", "Release",
+                              "RelWithDebInfo", and "MinSizeRel" [RelWithDebInfo]
+  --help                      print this message
+  --parallel=n                build cmake and boost in parallel if needed, where n
+                              is the number of nodes [1]
+  --package-type=type         enables generation of deployment package target (make package)
+                              Valid types are: rpm, deb, tgz and cygwin-binary
+  --static                    forces library static linking
+  --terse                     display less information (disables CMAKE_VERBOSE_MAKEFILE)
+  --verbose                   display more information (enables CMAKE_VERBOSE_MAKEFILE)
+  --version                   only print version information
+  --with-cmake=CMAKE          specify the cmake executable [cmake]
+  --with-dev-traces           enables development traces
+  --without-dev-traces        disables development traces
+  --with-numa[=DIR]           Allow linking against libnuma. If compatible libnuma is not found, 
+                              installation will still succeed but numa optimizations will not be used
+  --without-numa              Prevent linking against libnuma library.
+  --with-unit-tests           allow unit testing during the build
+  --without-unit-tests        prevent unit testing during the build (default)
+
+Directory and file names:
+  --prefix=PREFIX         install files in tree rooted at PREFIX
+  --exec-prefix=EPREFIX   install binary files in tree rooted at EPREFIX
+                          [PREFIX]
+  --bindir=DIR            install executable in DIR [EPREFIX/bin]
+  --libdir=DIR            install library files in DIR [EPREFIX/lib/iSAAC-${isaac_version_full}]
+  --libexecdir=DIR        install library programs in DIR [EPREFIX/libexec/iSAAC-${isaac_version_full}]
+  --includedir=DIR        install include files in DIR [PREFIX/include/iSAAC-${isaac_version_full}]
+  --datadir=DATADIR       install data files in DIR [PREFIX/share/iSAAC-${isaac_version_full}]
+  --docdir=DIR            install documentation in DIR [DATADIR/doc]
+  --mandir=DIR            install man pages files in DIR/manN [PREFIX/man]
+  --builddir=DIR          build iSAAC in DIR [./]
+
+Some influential environment variables:
+  BOOST_ROOT       location of the boost library
+  BOOST_INCLUDEDIR location of the include directory of boost
+  BOOST_LIBRARYDIR location of the lib directory of boost
+  CC               C compiler command
+  CFLAGS           C compiler flags
+  LDFLAGS          linker flags, e.g. -L<lib dir> if you have libraries in a
+                   nonstandard directory <lib dir>
+  CXX              C++ compiler command
+  CXXFLAGS         C++ compiler flags
+  CMAKE_OPTIONS    CMake command line options (for CMAKE_BUILD_TYPE, use --build-type)
+  
+  LIBRARY_PATH        library search path for library detection
+  C_INCLUDE_PATH      include search path for library detection
+  CPATH               include search path for library detection
+  CPLUS_INCLUDE_PATH  include search path for library detection
+
+Use these variables to override the choices made by 'configure' or to help
+it to find libraries and programs with nonstandard names/locations.
+
+EOF
+    exit 10
+}
+
+# Version number extraction function.
+isaac_version_component()
+{
+    cat "${isaac_source_dir}/CMakeLists.txt" | sed -n "
+/^set(iSAAC_VERSION_${1}/ {s/set(iSAAC_VERSION_${1} *\(\(SAAC\)\?[0-9]*\))/\1/;p;}
+"
+}
+
+# Helper function to fix windows paths.
+isaac_fix_directory_slashes ()
+{
+    case $1 in
+        */) echo "$1" | sed 's/\\/\//g';;
+        *) echo "$1/" | sed 's/\\/\//g';;
+    esac
+}
+
+isaac_create_path ()
+{
+	mkdir -p "$1"
+	(cd "$1" && pwd) || exit 2 
+}
+
+# Detect system and directory information.
+isaac_system="`uname`"
+# uname -p returns unknown on cygwin. uname -m returns x86_64 on both CentOS and Cygwin
+isaac_processor="`uname -m`"
+isaac_source_dir="`echo $0 | sed -n '/\//{s/\/[^\/]*$//;p;}'`"
+isaac_source_dir="`(cd "${isaac_source_dir}";pwd)`"
+isaac_redist_dir="${isaac_source_dir}/../redist"
+isaac_bootstrap_dir="${isaac_source_dir}/cmake/bootstrap"
+isaac_build_dir="`pwd`"
+isaac_version_major="`isaac_version_component MAJOR`"
+isaac_version_minor="`isaac_version_component MINOR`"
+isaac_version_patch="`isaac_version_component PATCH`"
+isaac_version="${isaac_version_major}.${isaac_version_minor}"
+isaac_version_full="${isaac_version_major}.${isaac_version_minor}.${isaac_version_patch}"
+
+# Determine whether this is a MinGW environment.
+if echo "${isaac_system}" | grep MINGW >/dev/null 2>&1; then
+    isaac_system_mingw=true
+else
+    isaac_system_mingw=false
+fi
+
+# Determine whether this is OS X
+if echo "${isaac_system}" | grep Darwin >/dev/null 2>&1; then
+    isaac_system_darwin=true
+else
+    isaac_system_darwin=false
+fi
+
+# Parse arguments
+isaac_build_type=RelWithDebInfo
+isaac_cmake_generator="Unix Makefiles"
+isaac_verbose=
+isaac_parallel=1
+for a in "$@"; do
+    if echo $a | grep "^--prefix=" > /dev/null 2> /dev/null; then
+        isaac_prefix_dir=`echo $a | sed "s/^--prefix=//"`
+        isaac_prefix_dir=`isaac_fix_directory_slashes "${isaac_prefix_dir}"` || exit $?
+    elif echo $a | grep "^--exec-prefix=" > /dev/null 2> /dev/null; then
+        isaac_exec_prefix_dir=`echo $a | sed "s/^--exec-prefix=//"`
+        isaac_exec_prefix_dir=`isaac_fix_directory_slashes "${isaac_exec_prefix_dir}"` || exit $?
+    elif echo $a | grep "^--bindir=" > /dev/null 2> /dev/null; then
+        isaac_bin_dir=`echo $a | sed "s/^--bindir=//"`
+        isaac_bin_dir=`isaac_fix_directory_slashes "${isaac_bin_dir}"` || exit $?
+    elif echo $a | grep "^--libdir=" > /dev/null 2> /dev/null; then
+        isaac_lib_dir=`echo $a | sed "s/^--libdir=//"`
+        isaac_lib_dir=`isaac_fix_directory_slashes "${isaac_lib_dir}"` || exit $?
+    elif echo $a | grep "^--libexecdir=" > /dev/null 2> /dev/null; then
+        isaac_libexec_dir=`echo $a | sed "s/^--libexecdir=//"`
+        isaac_libexec_dir=`isaac_fix_directory_slashes "${isaac_libexec_dir}"` || exit $?
+    elif echo $a | grep "^--includedir=" > /dev/null 2> /dev/null; then
+        isaac_include_dir=`echo $a | sed "s/^--includedir=//"`
+        isaac_include_dir=`isaac_fix_directory_slashes "${isaac_include_dir}"` || exit $?
+    elif echo $a | grep "^--with-numa=" > /dev/null 2> /dev/null; then
+        isaac_numa_dir=`echo $a | sed "s/^--with-numa=//"`
+        isaac_numa_dir=`isaac_fix_directory_slashes "${isaac_numa_dir}"` || exit $?
+    elif echo $a | grep "^--with-numa" > /dev/null 2> /dev/null; then
+        isaac_numa_dir=${ISAAC_DEFAULT_NUMA_DIR}
+    elif echo $a | grep "^--without-numa" > /dev/null 2> /dev/null; then
+        isaac_numa_dir="disable"
+    elif echo $a | grep "^--datadir=" > /dev/null 2> /dev/null; then
+        isaac_data_dir=`echo $a | sed "s/^--datadir=//"`
+        isaac_data_dir=`isaac_fix_directory_slashes "${isaac_data_dir}"` || exit $?
+    elif echo $a | grep "^--docdir=" > /dev/null 2> /dev/null; then
+        isaac_doc_dir=`echo $a | sed "s/^--docdir=//"`
+        isaac_doc_dir=`isaac_fix_directory_slashes "${isaac_doc_dir}"` || exit $?
+    elif echo $a | grep "^--mandir=" > /dev/null 2> /dev/null; then
+        isaac_man_dir=`echo $a | sed "s/^--mandir=//"`
+        isaac_man_dir=`isaac_fix_directory_slashes "${isaac_man_dir}"` || exit $?
+    elif echo $a | grep "^--builddir=" > /dev/null 2> /dev/null; then
+        isaac_build_dir=`echo $a | sed "s/^--builddir=//"`
+        isaac_build_dir=`isaac_fix_directory_slashes "${isaac_build_dir}"` || exit $?
+        isaac_build_dir=`isaac_create_path "${isaac_build_dir}"` || exit 2
+    elif echo $a | grep "^--help" > /dev/null 2> /dev/null; then
+        isaac_usage
+    elif echo $a | grep "^--version" > /dev/null 2> /dev/null; then
+        echo "iSAAC ${isaac_version_full}, Copyright (c) 2007-2010 Illumina, Inc"
+        exit 2
+    elif echo $a | grep "^--with-cmake" > /dev/null 2> /dev/null; then
+        isaac_cmake=`echo $a | sed "s/^--with-cmake=//"`
+    elif echo $a | grep "^--build-type" > /dev/null 2> /dev/null; then
+        isaac_build_type=`echo $a | sed "s/^--build-type=//"`
+    elif echo $a | grep "^--parallel" > /dev/null 2> /dev/null; then
+        isaac_parallel=`echo $a | sed "s/^--parallel=//"`
+    elif echo $a | grep "^--with-unit-tests" > /dev/null 2> /dev/null; then
+        CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_UNIT_TESTS=TRUE"
+    elif echo $a | grep "^--without-unit-tests" > /dev/null 2> /dev/null; then
+        CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_UNIT_TESTS=FALSE"
+    elif echo $a | grep "^--verbose" > /dev/null 2> /dev/null; then
+        CMAKE_OPTIONS="$CMAKE_OPTIONS -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DBoost_DEBUG:BOOL=ON"
+        isaac_verbose=TRUE
+    elif echo $a | grep "^--terse" > /dev/null 2> /dev/null; then
+        CMAKE_OPTIONS="$CMAKE_OPTIONS -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF -DBoost_DEBUG:BOOL=OFF"
+        isaac_verbose=
+    elif echo $a | grep "^--static" > /dev/null 2> /dev/null; then
+        isaac_static=TRUE
+    elif echo $a | grep "^--package-type=rpm" > /dev/null 2> /dev/null; then
+        isaac_package=RPM
+    elif echo $a | grep "^--package-type=deb" > /dev/null 2> /dev/null; then
+        isaac_package=DEB
+    elif echo $a | grep "^--package-type=tgz" > /dev/null 2> /dev/null; then
+        isaac_package=TGZ
+    elif echo $a | grep "^--package-type=cygwin-binary" > /dev/null 2> /dev/null; then
+        isaac_package=CygwinBinary
+    elif echo $a | grep "^--package-type=cygwin-source" > /dev/null 2> /dev/null; then
+        echo "Cygwin source package generation is not supported" >&2
+        exit 2
+    elif echo $a | grep "^--with-dev-traces" > /dev/null 2> /dev/null; then
+        export CXXFLAGS="-DISAAC_THREAD_CERR_DEV_TRACE_ENABLED ${CXXFLAGS}"
+    elif echo $a | grep "^--trace-cluster-id=" > /dev/null 2> /dev/null; then
+        isaac_dev_trace_cluster_id=`echo $a | sed "s/^--trace-cluster-id=//"`
+        export CXXFLAGS="${CXXFLAGS} -DISAAC_THREAD_CERR_DEV_TRACE_ENABLED_CLUSTER_ID=${isaac_dev_trace_cluster_id}"
+    elif echo $a | grep "^--with-gprof" > /dev/null 2> /dev/null; then
+        export CXXFLAGS="-pg -fprofile-arcs ${CXXFLAGS}"
+    else
+        echo "Unknown command line option: $a" >&2
+        exit 2
+    fi
+    
+done
+
+
+# It is important to build cmake in a separate subtree from boost. Cmake 2.8.9 checks its installation folder
+# when searching for boost. If incompatible boost is present elsewhere in the system (/usr/include and such), 
+# cmake caches the folder contents of its installation folder and fails to see iSAAC-built boost libraries 
+# after they appear there.
+isaac_cmake_install_dir="${isaac_build_dir}/bootstrap_cmake"
+if [ "x${isaac_cmake}"       == "x" ] ; then 
+    "${isaac_bootstrap_dir}"/installCmake.sh "${isaac_redist_dir}" "${isaac_cmake_install_dir}" "${isaac_parallel}"
+    cmake_install_exit_code="$?"
+    if [ "$cmake_install_exit_code" == "1" ]; then
+        isaac_cmake=cmake
+        echo "Using existing `which cmake`"
+    elif [ "$cmake_install_exit_code" == "0" ]; then
+        isaac_cmake="${isaac_cmake_install_dir}/bin/cmake"
+        echo "Using installed ${isaac_cmake}"
+    else
+        echo "Failed to verify or install cmake"
+        exit 3
+    fi
+fi
+
+
+# Set the build and install paths
+
+# display information if required
+if [ -n "${isaac_verbose}" ]; then
+    echo "Source  directory:  ${isaac_source_dir}"
+    echo "Prefix  directory:  ${isaac_prefix_dir}"
+    echo "Exec    directory:  ${isaac_exec_prefix_dir}"
+    echo "Binary  directory:  ${isaac_bin_dir}"
+    echo "Lib     directory:  ${isaac_lib_dir}"
+    echo "Libexec directory:  ${isaac_libexec_dir}"
+    echo "Include directory:  ${isaac_include_dir}"
+    echo "Data    directory:  ${isaac_data_dir}"
+    echo "Doc     directory:  ${isaac_doc_dir}"
+    echo "Man     directory:  ${isaac_man_dir}"
+    echo "Build   directory:  ${isaac_build_dir}"
+    echo "Cmake   executable: ${isaac_cmake}"
+    echo "LIBRARY_PATH     :  ${LIBRARY_PATH}"
+    echo "C_INCLUDE_PATH   :  ${C_INCLUDE_PATH}"
+    echo "CPATH:              ${CPATH}"
+    echo "CPLUS_INCLUDE_PATH: ${CPLUS_INCLUDE_PATH}"
+    echo "NUMA:               ${isaac_numa_dir}"
+    echo ""
+fi  
+
+# create the build directory if necessary
+if [[ ! -d "${isaac_build_dir}" ]]; then 
+    mkdir "${isaac_build_dir}"
+    if [ "$?" != 0 ]; then
+        echo "Couldn't create the build directory: ${isaac_build_dir}"
+        exit 4
+    fi
+fi
+
+# invoke cmake
+
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_PREFIX:STRING=${isaac_prefix_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_EXEC_PREFIX:STRING=${isaac_exec_prefix_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_BINDIR:PATH=${isaac_bin_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_LIBDIR:PATH=${isaac_lib_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_LIBEXECDIR:PATH=${isaac_libexec_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_INCLUDEDIR:PATH=${isaac_include_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_DATADIR:PATH=${isaac_data_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_DOCDIR:PATH=${isaac_doc_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_MANDIR:PATH=${isaac_man_dir}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DCMAKE_BUILD_TYPE:STRING=${isaac_build_type}"
+CMAKE_OPTIONS="$CMAKE_OPTIONS -DCMAKE_PARALLEL:INTEGER=${isaac_parallel}"
+
+if [ -n "${isaac_static}" ]; then
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_FORCE_STATIC_LINK:BOOL=ON"
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DLINK_SEARCH_END_STATIC:BOOL=ON"
+fi
+
+if [ "${isaac_numa_dir}"       != "disable" ] ; then
+    if [ "x${isaac_numa_dir}"       != "x" ] ; then  
+        C_INCLUDE_PATH=${isaac_numa_dir}/include:${C_INCLUDE_PATH}
+        LIBRARY_PATH=${isaac_numa_dir}/lib64:${isaac_numa_dir}/lib:${LIBRARY_PATH}
+    fi
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_ALLOW_NUMA:BOOL=ON"
+else
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_ALLOW_NUMA:BOOL=OFF"
+fi
+
+
+if [ "DEB" == "${isaac_package}" ]; then
+    CMAKE_OPTIONS="${CMAKE_OPTIONS} \
+        -DCPACK_GENERATOR:STRING=DEB \
+        -DCPACK_SYSTEM_NAME:STRING=${isaac_system}-${isaac_processor} \
+        -DCPACK_PACKAGE_CONTACT:STRING='support@illumina.com' \
+        -DCPACK_DEBIAN_PACKAGE_ARCHITECTURE:STRING='`dpkg --print-architecture`'"
+	
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DCPACK_DEBIAN_PACKAGE_DEPENDS:STRING='gnuplot(>=4.0),libxslt1.1(>=1.1),xsltproc(>=1.1)'"
+    
+elif [ "RPM" == "${isaac_package}" ]; then
+    CMAKE_OPTIONS="${CMAKE_OPTIONS} \
+        -DCPACK_GENERATOR:STRING=RPM \
+        -DCPACK_SYSTEM_NAME:STRING=${isaac_system}-${isaac_processor} \
+        -DCPACK_PACKAGE_CONTACT:STRING='support@illumina.com'"
+
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DCPACK_RPM_PACKAGE_REQUIRES:STRING='gnuplot >= 4.0,libxslt'"
+elif [ "TGZ" == "${isaac_package}" ]; then
+    CMAKE_OPTIONS="${CMAKE_OPTIONS} \
+        -DCPACK_SYSTEM_NAME:STRING=${isaac_system}-${isaac_processor} \
+        -DCPACK_GENERATOR:STRING=TGZ"
+elif [ "CygwinBinary" == "${isaac_package}" ]; then
+     CMAKE_OPTIONS="${CMAKE_OPTIONS} \
+         -DCPACK_SYSTEM_NAME:STRING=${isaac_system}-${isaac_processor} \
+         -DCPACK_GENERATOR:STRING=CygwinBinary"
+fi
+
+if [ -n "${isaac_verbose}" ]; then
+    echo "Running on: `uname -a`"
+    echo "Configuring the build directory with:"
+    echo "    "${isaac_cmake} -H\"${isaac_source_dir}\" -B\"${isaac_build_dir}\" -G\"${isaac_cmake_generator}\" ${CMAKE_OPTIONS}
+    echo ""
+fi
+
+eval "${isaac_cmake} -H'${isaac_source_dir}' -B'${isaac_build_dir}' -G'${isaac_cmake_generator}' ${CMAKE_OPTIONS}"
+
+if [ "$?" != 0 ]; then
+    echo "Couldn't configure the project:"
+    echo ""
+    echo "${isaac_cmake} -H\"${isaac_source_dir}\" -B\"${isaac_build_dir}\" -G\"${isaac_cmake_generator}\" ${CMAKE_OPTIONS}"
+    echo ""
+    echo "Moving CMakeCache.txt to CMakeCache.txt.removed"
+    echo ""
+    rm -f ${isaac_build_dir}/CMakeCache.txt.removed && mv ${isaac_build_dir}/CMakeCache.txt ${isaac_build_dir}/CMakeCache.txt.removed
+    echo ""
+    exit 5
+fi
+
+if [ "${isaac_build_dir}" == "${isaac_source_dir}" ]; then
+    echo ""
+    echo "Warning: it is recommended to build iSAAC outside of the source directory:"
+    echo "    mkdir ../iSAAC-build"
+    echo "    cd ../iSAAC-build"
+    echo "    ../$(basename $(pwd))/configure --prefix=/path/to/install/dir"
+    echo "    make"
+    echo "    make install"
+    echo ""
+fi
+
+echo "The build directory ${isaac_build_dir} was configured successfully"
+echo ""
+echo Type "make" at the top level of the root directory to build iSAAC
+echo ""
+

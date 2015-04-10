@@ -1,0 +1,112 @@
+#!/bin/bash
+################################################################################
+##
+## Isaac Genome Alignment Software
+## Copyright (c) 2010-2014 Illumina, Inc.
+## All rights reserved.
+##
+## This software is provided under the terms and conditions of the
+## Illumina Public License 1
+##
+## You should have received a copy of the Illumina Public License 1
+## along with this program. If not, see
+## <https://github.com/sequencing/licenses/>.
+##
+################################################################################
+##
+## file isaac-unpack-reference
+##
+## Unpack sorted reference packaged with isaac-pack-reference.
+##
+## author Roman Petrovski
+##
+################################################################################
+
+#set -x
+set -o pipefail
+shopt -s compat31 2>/dev/null
+
+UNPACK_REFERENCE_MK=@iSAAC_HOME@@iSAAC_FULL_DATADIR@/makefiles/reference/UnpackReference.mk
+
+jobs=1
+dryRun=''
+maskWidth=6
+inputFile=
+help=''
+repeatThreshold=1000
+seedLengths=original
+movable=no
+
+isaac_unpack_reference_usage()
+{
+    cat <<EOF
+Usage: $0 [options]
+Options:
+  -h [ --help ]                                        Print this message
+  -i [ --input-file ] arg                              Archive path
+  -j [ --jobs ] arg (=$jobs)                              Maximum number of parallel operations
+  --make-movable                                       Store relative paths in sorted-reference.xml so that the entire
+                                                       folder can be copied elsewhere
+  -n [ --dry-run ]                                     Don't actually run any commands; just print them
+  --seed-length-list arg (=$seedLengths)                   Seed lengths to unpack. 'original' will unpack all seed lengths
+                                                       that were present in the reference which was packed. Use space-separated list
+                                                       to override. Only values 16, 32 and 64 are allowed. 
+  -t [ --repeat-threshold ] arg (=$repeatThreshold)                Repeat cutoff after which individual kmer positions are not stored
+
+  -w [ --mask-width ] arg (=$maskWidth)                         Number of high order bits to use for splitting the data for parallelization 
+  -v [ --version ]                                     Only print version information
+
+EOF
+}
+
+isaac_unpack_reference_version()
+{
+    echo @iSAAC_VERSION_FULL@
+}
+
+while (( ${#@} )); do
+	param=$1
+	shift
+    if [[ $param == "--mask-width" || $param == "-w" ]]; then
+        maskWidth=$1
+        shift
+    elif [[ $param == "--dry-run" || $param == "-n" ]]; then
+        dryRun='-n'
+    elif [[ $param == "--input-file" || $param == "-i" ]]; then
+        inputFile=$1
+        shift
+    elif [[ $param == "--repeat-threshold" || $param == "-t" ]]; then
+        repeatThreshold=$1
+        shift
+    elif [[ $param == "--jobs" || $param == "-j" ]]; then
+        jobs=$1
+        shift
+    elif [[ $param == "--make-movable" ]]; then
+        movable=yes
+    elif [[ $param == "--seed-length-list" ]]; then
+        seedLengths=$1
+        shift
+    elif [[ $param == "--help" || $param == "-h" ]]; then
+        isaac_unpack_reference_usage
+        exit 1
+    elif [[ $param == "--version" || $param == "-v" ]]; then
+        isaac_unpack_reference_version
+        exit 1
+    else
+        echo "ERROR: unrecognized argument: $param" >&2
+        exit 2
+    fi
+done
+
+[[ "" == "$inputFile" ]] && isaac_unpack_reference_usage && echo "ERROR: --input-file argument is mandatory" >&2 && exit 2
+
+[[ ! -e "$inputFile" ]] && echo "ERROR: File not found: '$inputFile'" && exit 2
+
+make $dryRun -j $jobs -f ${UNPACK_REFERENCE_MK} \
+    MASK_WIDTH:=$maskWidth \
+    INPUT_ARCHIVE:=$inputFile \
+    REPEAT_THRESHOLD:=$repeatThreshold SEED_LENGTHS:="$seedLengths" \
+    MOVABLE:=$movable\
+    || exit 2
+
+

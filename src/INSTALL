@@ -1,0 +1,39 @@
+## Isaac Genome Alignment Software
+## Copyright (c) 2010-2014 Illumina, Inc.
+## All rights reserved.
+##
+## This software is provided under the terms and conditions of the
+## Illumina Public License 1
+##
+## You should have received a copy of the Illumina Public License 1
+## along with this program. If not, see
+## <https://github.com/sequencing/licenses/>.
+
+Installing the Isaac Genome Alignment Software
+==============================================
+
+Prerequisites:
+--------------
+
+- gnuplot (>= 4.0) (required during the execution)
+- libnuma (if --with-numa is used)
+- libz
+- libbz2
+- gcc (>= 4.6.1), for compilation
+- markdown tool will be used if available to generate html user manual
+
+Quick start:
+------------
+
+iSAAC _must_ be built outside of the source directory. The steps are the usual
+configure/make/make install. 
+
+mkdir iSAAC-build
+cd iSAAC-build
+/path/to/iSAAC/src/configure --prefix=/path/to/iSAAC-install
+make
+make install
+
+For additional options:
+
+/path/to/iSAAC/src/configure --help

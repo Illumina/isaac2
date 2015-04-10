@@ -1,0 +1,95 @@
+#!/bin/bash
+################################################################################
+##
+## Isaac Genome Alignment Software
+## Copyright (c) 2010-2014 Illumina, Inc.
+## All rights reserved.
+##
+## This software is provided under the terms and conditions of the
+## Illumina Public License 1
+##
+## You should have received a copy of the Illumina Public License 1
+## along with this program. If not, see
+## <https://github.com/sequencing/licenses/>.
+##
+################################################################################
+##
+## file isaac-merge-references
+##
+## Combine information from different sorted references together
+##
+## author Roman Petrovski
+##
+################################################################################
+
+#set -x
+set -o pipefail
+shopt -s compat31 2>/dev/null
+
+MERGE_REFERENCES=@iSAAC_HOME@@iSAAC_FULL_LIBEXECDIR@/mergeReferences
+
+outputDirectory=./iSAACIndex.$(date +%Y%m%d)
+help=''
+inputFiles=''
+mergeAnnotations='yes'
+
+isaac_merge_references_usage()
+{
+    cat <<EOF
+Usage: $0 [options]
+Options:
+  -h [ --help ]                                         Print this message
+  -v [ --version ]                                      Only print version information
+
+  -i [ --input-file ] arg                               Path to sorted-reference.xml to be merged. 
+                                                        Multiple entries allowed.
+  --dont-merge-annotations                              Keep the annotation of the first reference if it is present.
+
+  -o [ --output-directory ] arg ($outputDirectory) Location where the results are stored
+
+EOF
+}
+
+isaac_merge_references_version()
+{
+    echo @iSAAC_VERSION_FULL@
+}
+
+while (( ${#@} )); do
+	param=$1
+	shift
+    if [[ $param == "--dry-run" || $param == "-n" ]]; then
+        dryRun='-n'
+    elif [[ $param == "--output-directory" || $param == "-o" ]]; then
+        outputDirectory=$1
+        shift
+    elif [[ $param == "--input-file" || $param == "-i" ]]; then
+        inputFiles="${inputFiles} -i $1"
+        shift
+    elif [[ $param == "--jobs" || $param == "-j" ]]; then
+        jobs=$1
+        shift
+    elif [[ $param == "--dont-merge-annotations" ]]; then
+        mergeAnnotations='no'
+        shift
+    elif [[ $param == "--help" || $param == "-h" ]]; then
+        isaac_merge_references_usage
+        exit 1
+    elif [[ $param == "--version" || $param == "-v" ]]; then
+        isaac_merge_references_version
+        exit 1
+    else
+        echo "ERROR: unrecognized argument: $param" >&2
+        exit 2
+    fi
+done
+
+[[ "" == "$outputDirectory" ]] && isaac_merge_references_usage && echo "ERROR: --output-directory argument is mandatory" >&2 && exit 2
+[[ "" == "$inputFiles" ]] && isaac_merge_references_usage && echo "ERROR: --input-file arguments are mandatory" >&2 && exit 2
+
+[ -e ${outputDirectory}/sorted-reference.xml ] && echo "EROR: file ${outputDirectory}/sorted-reference.xml already exists" >&2 && exit 2
+
+outputDirectory=$(mkdir -p "$outputDirectory" && (cd "$outputDirectory" && pwd)) || exit 2
+
+${MERGE_REFERENCES} --merge-annotations ${mergeAnnotations} ${inputFiles} -o ${outputDirectory}/sorted-reference.xml || exit 2
+
