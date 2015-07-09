@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file ContigsPrinter.cpp
  **
@@ -102,7 +102,9 @@ void ContigsPrinter::run()
         {
             lastAcgtCount += std::count_if(line.begin(), line.end(), boost::bind(&oligo::getValue, _1) != oligo::INVALID_OLIGO);
             // ignore untranslated '\r'
-            lastBasesCount += std::count_if(line.begin(), line.end(), boost::bind(&boost::ref<char>, _1) != '\r');
+            lastBasesCount += std::count_if(line.begin(), line.end(),
+                                            [](char c){return c != '\r';});
+//                                            boost::bind(&boost::ref<char>, _1) != '\r');
         
             // MD5 with format characters stripped out
             std::string lineStd = line;

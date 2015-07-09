@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file UseBasesMaskGrammar.hh
  **
@@ -29,12 +29,12 @@
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/spirit/include/phoenix1_statements.hpp>
-#include <boost/spirit/home/phoenix/statement/if.hpp>
-#include <boost/spirit/home/phoenix/statement/throw.hpp>
-#include <boost/spirit/home/phoenix/object/static_cast.hpp>
-#include <boost/spirit/home/phoenix/function/function.hpp>
-#include <boost/spirit/home/phoenix/bind.hpp>
-#include <boost/spirit/home/phoenix/object/construct.hpp>
+#include <boost/phoenix/statement/if.hpp>
+#include <boost/phoenix/statement/throw.hpp>
+#include <boost/phoenix/object/static_cast.hpp>
+#include <boost/phoenix/function/function.hpp>
+#include <boost/phoenix/bind.hpp>
+#include <boost/phoenix/object/construct.hpp>
 #include <boost/spirit/home/support/unused.hpp>
 
 namespace isaac
@@ -93,18 +93,17 @@ struct UseBasesMaskGrammar : bs::qi::grammar<Iterator, std::vector<std::string >
                     (char_('*') >>
                         read_mask_no_wc_
                         [
-                             if_(at(boost::phoenix::ref(readLengths_), boost::phoenix::ref(currentRead_)) > size(_val) + size(_1))
-                                 [insert(_val, end(_val),
-                                         at(boost::phoenix::ref(readLengths_), boost::phoenix::ref(currentRead_)) - size(_val) - size(_1),
-                                         back(_val))]
+//                             if_(at(boost::phoenix::ref(readLengths_), boost::phoenix::ref(currentRead_)) > size(_val) + size(_1))
+//                                 [insert(_val, end(_val),
+//                                         at(boost::phoenix::ref(readLengths_), boost::phoenix::ref(currentRead_)) - size(_val) - size(_1),
+//                                         back(_val))]
+                         boost::phoenix::bind(
+                             &checkedAppend,
+                             _val,
+                             at(boost::phoenix::ref(readLengths_), boost::phoenix::ref(currentRead_)) - size(_val) - size(_1),
+                             back(_val))
                         ]
                         [insert(_val, end(_val), begin(_1), end(_1))]
-//                                [bind(&appendBoth, _val
-//                                            ,
-//                                            at(readLengths_, val(currentRead_))-static_cast_<int>(size(_val)+size(_1)),
-//                                            back(_val),
-//                                            _1
-//                                            )]
                     )
                 )
             );
@@ -119,13 +118,13 @@ struct UseBasesMaskGrammar : bs::qi::grammar<Iterator, std::vector<std::string >
         start_ = use_bases_mask_;
     }
 
-    //    static void appendBoth(std::vector<char> &where, int howMany, char what, const std::vector<char>& rest)
-    //    {
-    //        std::cerr << "where:" << common::makeFastIoString(where.begin(), where.end()) <<
-    //                " howMany:" << howMany << " what:" << what << " rest:" << common::makeFastIoString(rest.begin(), rest.end());
-    //        where.insert(where.end(), howMany, what);
-    //        where.insert(where.end(), rest.begin(), rest.end());
-    //    }
+    static void checkedAppend(std::vector<char> &where, int howMany, const char what)
+    {
+        if (0 < howMany)
+        {
+            where.insert(where.end(), howMany, what);
+        }
+    }
 
     static void failIf0(unsigned int attribute, const bs::unused_type& it, bool &mFlag)
     {

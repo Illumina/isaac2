@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentAccessorBamAdapter.hh
  **
@@ -74,16 +74,16 @@ class FragmentAccessorBamAdapter
     reference::ReferencePosition pos_;
     // if read got realigned pFragment->cigarBegin() points at the original cigar
     const io::FragmentAccessor* pFragment_;
-    common::FiniteCapacityVector<char, 100> readGroupNameBuffer_;
-    common::FiniteCapacityVector<char, 1024> barcodeNameBuffer_;
-    common::FiniteCapacityVector<char, 1024> readNameBuffer_;
-    common::FiniteCapacityVector<char, 10240> originalCigarBuffer_;
+    common::StaticVector<char, 100> readGroupNameBuffer_;
+    common::StaticVector<char, 1024> barcodeNameBuffer_;
+    common::StaticVector<char, 1024> readNameBuffer_;
+    common::StaticVector<char, 10240> originalCigarBuffer_;
     const unsigned *cigarBegin_;
     const unsigned *cigarEnd_;
     bool reverse_;
-    typedef common::FiniteCapacityVector<char, 10240> SeqBufferType;
+    typedef common::StaticVector<char, 10240> SeqBufferType;
     SeqBufferType seqBuffer_;
-    typedef common::FiniteCapacityVector<char, 10240> QualBufferType;
+    typedef common::StaticVector<char, 10240> QualBufferType;
     QualBufferType qualBuffer_;
     unsigned char forcedDodgyAlignmentScore_;
     flowcell::FlowcellLayoutList const &flowCellLayoutList_;
@@ -91,7 +91,7 @@ class FragmentAccessorBamAdapter
     const bool pessimisticMapQ_;
     const unsigned splitGapLength_;
 
-    common::FiniteCapacityVector<char, 10240> saTagBuffer_;
+    common::StaticVector<char, 10240> saTagBuffer_;
     // If this is part of split alignment, conventional NM represents edit distance for the entire alignment. saNM_ is
     // the edit distance of this part
     unsigned saNM_;
@@ -402,7 +402,7 @@ public:
     }
 
     unsigned flag() const {
-        std::bitset<12> bs(0);
+        std::bitset<12> bs;
         bs.set(0, pFragment_->flags_.paired_);
         bs.set(1, pFragment_->flags_.properPair_);
         bs.set(2, pFragment_->flags_.unmapped_);

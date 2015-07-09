@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentCollector.hh
  **
@@ -129,7 +129,7 @@ public:
 private:
     static const unsigned READS_MAX = 2;
     const unsigned recordLength_;
-    const common::FiniteCapacityVector<unsigned, READS_MAX> readOffsets_;
+    const common::StaticVector<unsigned, READS_MAX> readOffsets_;
     unsigned long clusters_;
     std::vector<char> data_;
 
@@ -146,9 +146,9 @@ private:
      * \brief First read is located at the beginning, Second is at io::FragmentHeader::getMaxTotalLength of the
      *        first read length. Only two reads are supported
      */
-    static common::FiniteCapacityVector<unsigned, 2> getReadOffsets(const flowcell::FlowcellLayoutList &flowcellLayoutList)
+    static common::StaticVector<unsigned, 2> getReadOffsets(const flowcell::FlowcellLayoutList &flowcellLayoutList)
     {
-        common::FiniteCapacityVector<unsigned, 2> ret;
+        common::StaticVector<unsigned, 2> ret;
         ret.push_back(0);
         const unsigned readsMax = flowcell::getMaxReadCount(flowcellLayoutList);
         const unsigned clusterNameMax = flowcell::getMaxClusterName(flowcellLayoutList);

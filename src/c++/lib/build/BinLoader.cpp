@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file BinLoader.cpp
  **
@@ -138,6 +138,41 @@ const io::FragmentAccessor &BinLoader::loadFragment(BinData &binData, std::istre
     return fragment;
 }
 
+void BinLoader::storeFragmentIndex(
+    const io::FragmentAccessor& fragment,
+    unsigned long offset,
+    unsigned long mateOffset, BinData& binData)
+{
+    if (fragment.flags_.reverse_ || fragment.flags_.unmapped_)
+    {
+        RStrandOrShadowFragmentIndex rsIdx(
+            fragment.fStrandPosition_, // shadows are stored at the position of their singletons,
+            io::FragmentIndexAnchor(fragment),
+            FragmentIndexMate(fragment.flags_.mateUnmapped_,
+                              fragment.flags_.mateReverse_,
+                              fragment.mateStorageBin_,
+                              fragment.mateAnchor_),
+            fragment.duplicateClusterRank_);
+        rsIdx.dataOffset_ = offset;
+        rsIdx.mateDataOffset_ = mateOffset;
+        binData.rIdx_.push_back(rsIdx);
+    }
+    else
+    {
+        FStrandFragmentIndex fIdx(
+            fragment.fStrandPosition_,
+            FragmentIndexMate(fragment.flags_.mateUnmapped_,
+                              fragment.flags_.mateReverse_,
+                              fragment.mateStorageBin_,
+                              fragment.mateAnchor_),
+            fragment.duplicateClusterRank_);
+        fIdx.dataOffset_ = offset;
+        fIdx.mateDataOffset_ = mateOffset;
+        binData.fIdx_.push_back(fIdx);
+    }
+}
+
+
 void BinLoader::loadAlignedData(BinData &binData)
 {
     if(binData.bin_.getDataSize())
@@ -193,64 +228,12 @@ void BinLoader::loadAlignedData(BinData &binData)
 
                     verifyFragmentIntegrity(mateFragment);
 
-                    if (mateFragment.flags_.reverse_ || mateFragment.flags_.unmapped_)
-                    {
-                        RStrandOrShadowFragmentIndex rsMateIdx(
-                            mateFragment.fStrandPosition_, // shadows are stored at the position of their singletons,
-                            io::FragmentIndexAnchor(mateFragment),
-                            FragmentIndexMate(
-                                mateFragment.flags_.mateUnmapped_, mateFragment.flags_.mateReverse_, mateFragment.mateStorageBin_,
-                                mateFragment.mateAnchor_),
-                                mateFragment.duplicateClusterRank_);
-
-                        rsMateIdx.dataOffset_ = mateOffset;
-                        rsMateIdx.mateDataOffset_ = offset;
-                        binData.rIdx_.push_back(rsMateIdx);
-                    }
-                    else
-                    {
-                        FStrandFragmentIndex fMateIdx(
-                            mateFragment.fStrandPosition_,
-                            FragmentIndexMate(
-                                mateFragment.flags_.mateUnmapped_, mateFragment.flags_.mateReverse_, mateFragment.mateStorageBin_,
-                                mateFragment.mateAnchor_),
-                                mateFragment.duplicateClusterRank_);
-
-                        fMateIdx.dataOffset_ = mateOffset;
-                        fMateIdx.mateDataOffset_ = offset;
-                        binData.fIdx_.push_back(fMateIdx);
-                    }
+                    storeFragmentIndex(mateFragment, mateOffset, offset, binData);
 
                     binOffset += mateFragmentLength;
                 }
 
-                if (fragment.flags_.reverse_ || fragment.flags_.unmapped_)
-                {
-                    RStrandOrShadowFragmentIndex rsIdx(
-                        fragment.fStrandPosition_, // shadows are stored at the position of their singletons,
-                        io::FragmentIndexAnchor(fragment),
-                        FragmentIndexMate(
-                            fragment.flags_.mateUnmapped_, fragment.flags_.mateReverse_, fragment.mateStorageBin_,
-                            fragment.mateAnchor_),
-                        fragment.duplicateClusterRank_);
-
-                    rsIdx.dataOffset_ = offset;
-                    rsIdx.mateDataOffset_ = mateOffset;
-                    binData.rIdx_.push_back(rsIdx);
-                }
-                else
-                {
-                    FStrandFragmentIndex fIdx(
-                        fragment.fStrandPosition_,
-                        FragmentIndexMate(
-                            fragment.flags_.mateUnmapped_, fragment.flags_.mateReverse_, fragment.mateStorageBin_,
-                            fragment.mateAnchor_),
-                        fragment.duplicateClusterRank_);
-
-                    fIdx.dataOffset_ = offset;
-                    fIdx.mateDataOffset_ = mateOffset;
-                    binData.fIdx_.push_back(fIdx);
-                }
+                storeFragmentIndex(fragment, offset, mateOffset, binData);
             }
         }
         ISAAC_THREAD_CERR << "Reading alignment records done from " << binData.bin_ << std::endl;

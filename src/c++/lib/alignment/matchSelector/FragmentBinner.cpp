@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentBinner.cpp
  **
@@ -169,10 +169,16 @@ void FragmentBinner::getFragmentStorageBins(const io::FragmentAccessor &fragment
         {
             if (Cigar::ALIGN == it.component().second)
             {
-                const unsigned binIndex = binIndexMap_.getBinIndex(it.referencePos_);
-                if (bins.empty() || bins.back() != binIndex)
+                const unsigned startBinIndex = binIndexMap_.getBinIndex(it.referencePos_);
+                if (bins.empty() || bins.back() != startBinIndex)
                 {
-                    bins.push_back(binIndex);
+                    bins.push_back(startBinIndex);
+                }
+                // push the last position as well. This is important for duplicate detection of r-stranded alignments that end in the same bin but begin in different ones
+                const unsigned endBinIndex = binIndexMap_.getBinIndex(it.referencePos_ + it.component().first - 1);
+                if (bins.back() != endBinIndex)
+                {
+                    bins.push_back(endBinIndex);
                 }
             }
         }

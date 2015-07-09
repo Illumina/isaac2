@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentMetadata.hh
  **
@@ -24,12 +24,12 @@
 #include <algorithm>
 #include <iostream>
 
+#include "../common/StaticVector.hh"
 #include "alignment/AlignmentCfg.hh"
 #include "alignment/Mismatch.hh"
 #include "alignment/Cigar.hh"
 #include "alignment/Cluster.hh"
 #include "alignment/SeedId.hh"
-#include "common/FiniteCapacityVector.hh"
 #include "reference/KUniqueness.hh"
 #include "reference/ReferencePosition.hh"
 
@@ -282,7 +282,10 @@ struct FragmentMetadata
     {
         // ensure that the position is positive!
         return !isNoMatch() ?
-            reference::ReferencePosition(contigId, std::max(position + observedLength, 1L) - 1) :
+            // observedLength can be zero if the CIGAR is soft-clipped to death or in case of
+            // split alignment with alignment position immediately following the alignment position of the last base
+            // think local translocations (most of them are fake though)
+            reference::ReferencePosition(contigId, position + std::max(observedLength, 1U) - 1) :
             reference::ReferencePosition(reference::ReferencePosition::NoMatch);
     }
     /// Position of the fragment

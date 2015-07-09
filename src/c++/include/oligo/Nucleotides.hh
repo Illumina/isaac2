@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file Nucleotides.hh
  **
@@ -23,8 +23,9 @@
 #include <vector>
 #include <boost/array.hpp>
 #include <boost/assign.hpp>
+
+#include "../common/StaticVector.hh"
 #include "common/Debug.hh"
-#include "common/FiniteCapacityVector.hh"
 
 namespace isaac
 {
@@ -42,7 +43,7 @@ static const char SEQUENCE_OLIGO_N = 'N';
 static const char REFERENCE_OLIGO_N = 'N';
 
 
-typedef common::FiniteCapacityVector<unsigned int, 256> Translator;
+typedef common::StaticVector<unsigned int, 256> Translator;
 
 inline Translator getTranslator(const bool withN = false, const unsigned defaultValue = INVALID_OLIGO)
 {   

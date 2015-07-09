@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentMetadataTileStatsAdapter.hh
  **
@@ -47,7 +47,8 @@ public:
     {
         const Read &read = fragment_.getRead();
         return std::count_if( read.getForwardQuality().begin(), read.getForwardQuality().end(),
-                              boost::bind(&boost::cref<unsigned char>, _1) >= 30u);
+                              [](unsigned char uc){return uc >= 30u;});
+//                              boost::bind(&boost::cref<unsigned char>, _1) >= 30u);
     }
 
     unsigned long getQualityScoreSum() const

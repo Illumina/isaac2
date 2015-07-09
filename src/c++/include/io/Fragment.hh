@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file Fragment.hh
  **
@@ -266,7 +266,9 @@ struct FragmentHeader
     reference::ReferencePosition getRStrandReferencePosition() const
     {
         ISAAC_ASSERT_MSG(isAligned(), "Must be aligned fragment");
-        //ISAAC_ASSERT_MSG(observedLength_, "observedLength_ must be non-zero") // it actually can be zero if the CIGAR is soft-clipped to death
+        // observedLength_ can be zero if the CIGAR is soft-clipped to death or in case of
+        // split alignment with alignment position immediately following the alignment position of the last base
+        // think local translocations (most of them are fake though)
         return fStrandPosition_ + std::max(observedLength_, 1U) - 1;
     }
     /// Position of the fragment
@@ -519,7 +521,8 @@ inline std::ostream & operator <<(std::ostream &os, const FragmentAccessor &frag
     os << "FragmentAccessor(" << header <<
         ", ";
     return alignment::Cigar::toStream(fragment.cigarBegin(), fragment.cigarEnd(), os) << "," <<
-        common::makeFastIoString(fragment.nameBegin(), fragment.nameEnd()) << ")";
+        common::makeFastIoString(fragment.nameBegin(), fragment.nameEnd()) << " " <<
+        fragment.mateAnchor_ << ")";
 }
 
 

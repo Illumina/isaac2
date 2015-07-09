@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file BinLoader.hh
  **
@@ -48,6 +48,9 @@ private:
     void loadUnalignedData(BinData &binData);
     void loadAlignedData(BinData &binData);
     const io::FragmentAccessor &loadFragment(BinData &binData, std::istream &isData, unsigned long &offset);
+    void storeFragmentIndex(const io::FragmentAccessor& mateFragment,
+                            unsigned long mateOffset, unsigned long offset,
+                            BinData& binData);
 };
 
 

@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file BinningFragmentStorage.cpp
  **
@@ -48,7 +48,7 @@ void BinningFragmentStorage::store(
     const BamTemplate &bamTemplate,
     const unsigned barcodeIdx)
 {
-    common::FiniteCapacityVector<char, READS_MAX * (sizeof(io::FragmentHeader) + FRAGMENT_BYTES_MAX)> buffer;
+    common::StaticVector<char, READS_MAX * (sizeof(io::FragmentHeader) + FRAGMENT_BYTES_MAX)> buffer;
     if (2 == bamTemplate.getFragmentCount())
     {
         packPairedFragment(bamTemplate, 0, barcodeIdx, binIndexMap_, std::back_inserter(buffer));

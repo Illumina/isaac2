@@ -6,11 +6,11 @@
 ## All rights reserved.
 ##
 ## This software is provided under the terms and conditions of the
-## Illumina Public License 1
+## GNU GENERAL PUBLIC LICENSE Version 3
 ##
-## You should have received a copy of the Illumina Public License 1
+## You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
 ## along with this program. If not, see
-## <https://github.com/sequencing/licenses/>.
+## <https://github.com/illumina/licenses/>.
 ##
 ################################################################################
 ##
@@ -40,6 +40,7 @@ SOURCE_TARBALL=${REDIST_DIR}/boost_${VERSION}.tar.bz2
 TARBALL_COMPRESSION=j
 SOURCE_DIR=${BUILD_DIR}/boost_${VERSION}
 BJAM_OPTIONS="cxxflags=-std=c++0x"
+USER_CONFIG_JAM=${SOURCE_DIR}/tools/build/user-config.jam
 
 common_options $@
 
@@ -58,8 +59,8 @@ common_create_source
 #NO_BZIP2 disables dependency on libbz.h which is handy in cygwin
 cd ${SOURCE_DIR} \
     && ./bootstrap.sh ${BOOTSTRAP_OPTIONS} --prefix=${INSTALL_DIR} --with-libraries=`echo ${iSAAC_BOOST_COMPONENTS} | sed "s/;/,/g"` \
-    && echo "using gcc : : ${CXX} ;" >${SOURCE_DIR}/tools/build/v2/user-config.jam \
-    && echo "modules.poke : NO_BZIP2 : 1 ;" >>${SOURCE_DIR}/tools/build/v2/user-config.jam \
+    && echo "using gcc : : ${CXX} ;" >${USER_CONFIG_JAM} \
+    && echo "modules.poke : NO_BZIP2 : 1 ;" >>${USER_CONFIG_JAM} \
     && ./bjam -q -j$PARALLEL ${BJAM_OPTIONS} --libdir=${INSTALL_DIR}/lib --layout=system link=static threading=multi install
 
 if [ $? != 0 ] ; then echo "$SCRIPT: build failed: Terminating..." >&2 ; exit 1 ; fi

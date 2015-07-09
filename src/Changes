@@ -1,3 +1,24 @@
+iSAAC-02.15.07.09
+* SAAC-812 Change license to GNU GENERAL PUBLIC LICENSE Version 3
+
+iSAAC-02.15.06.22
+* SAAC-806 boost 1.58 vector deserialization causes isaac-align fail to resume
+
+iSAAC-02.15.06.04
+* SAAC-803 Assertion failure when updating CIGAR of right-anchored insertion
+
+iSAAC-02.15.05.27
+* SAAC-802 boost 1.58 cmake 3.1.3 and gcc 4.5.3 4.7.3 4.7.4 4.8.0 4.8.1 4.8.2 4.8.3 4.8.4 4.9.0 4.9.1 4.9.2 5.1.0
+
+iSAAC-02.15.05.08
+* SAAC-801 Failure: Only one split per CIGAR is supported at the moment
+
+iSAAC-02.15.05.06
+* SAAC-800 inconsistent duplicate flag in the bam file when pair duplicates another pair with split alignment
+
+iSAAC-02.15.04.22
+* SAAC-798 inconsistent duplicate flag when one of the duplicates mate is a split read
+
 iSAAC-02.15.04.09
 * SAAC-797 Change license to Illumina Public License 1
 
@@ -156,7 +177,7 @@ iSAAC-02.14.09.01
 * SAAC-725 0D in the CIGAR
 
 iSAAC-02.14.08.28
-* SAAC-723 Change the license to the Illumina Public License 1
+* SAAC-723 Change the license to the BSD 2-Clause License
 * SAAC-724 iSAAC fails to load xsl template due to a corrupt path
 
 iSAAC-02.14.08.06

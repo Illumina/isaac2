@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file GappedAligner.cpp
  **
@@ -118,7 +118,7 @@ bool GappedAligner::makesSenseToGapAlign(
 
     // counts of corresponding offsets of the first base of the data from the first base of the reference
     // offset of 0 is in the middle of the trackedOffsets.
-    common::FiniteCapacityVector<unsigned char, QUERY_LENGTH_MAX> trackedOffsets(QUERY_LENGTH_MAX, 0);
+    common::StaticVector<unsigned char, QUERY_LENGTH_MAX> trackedOffsets(QUERY_LENGTH_MAX, 0);
     const int queryLength = std::distance(queryBegin, queryEnd);
 
     const unsigned maxOffset = queryLength * 2 + std::distance(databaseBegin, databaseEnd);

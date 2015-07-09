@@ -6,11 +6,11 @@
 ## All rights reserved.
 ##
 ## This software is provided under the terms and conditions of the
-## Illumina Public License 1
+## GNU GENERAL PUBLIC LICENSE Version 3
 ##
-## You should have received a copy of the Illumina Public License 1
+## You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
 ## along with this program. If not, see
-## <https://github.com/sequencing/licenses/>.
+## <https://github.com/illumina/licenses/>.
 ##
 ################################################################################
 ##
@@ -32,11 +32,11 @@ BIN_DIR=${INSTALL_DIR}/bin
 LIB_DIR=${INSTALL_DIR}/lib
 INCLUDE_DIR=${INSTALL_DIR}/include
 
-CMAKE_MAJOR=2
-CMAKE_MINOR=8
-CMAKE_PATCH=0
+CMAKE_MAJOR=3
+CMAKE_MINOR=1
+CMAKE_PATCH=3
 CMAKE_REQUIRED="$CMAKE_MAJOR.$CMAKE_MINOR.$CMAKE_PATCH"
-TARBALL_VERSION="2.8.9"
+TARBALL_VERSION="3.1.3"
 SCRIPT=`basename "$0"`
 SOURCE_TARBALL=${REDIST_DIR}/cmake-$TARBALL_VERSION.tar.gz
 TARBALL_COMPRESSION=z
@@ -66,7 +66,7 @@ if [[ "${AVAILABLE_CMAKE_VERSION}" =~ ^cmake\ version\ ([0-9]+)\.([0-9]+)\.([0-9
     fi
 fi 
 
-OLD_CMAKE_VERSION=`${BIN_DIR}/cmake --version 2> /dev/null`;
+OLD_CMAKE_VERSION=`${BIN_DIR}/cmake --version 2> /dev/null |head -1`;
 if [[ $OLD_CMAKE_VERSION == "cmake version $TARBALL_VERSION" && ! $FORCE ]] ; then
     echo cmake version \"$TARBALL_VERSION\" is already installed at ${BIN_DIR}/cmake >&2
     echo nothing to be done >&2

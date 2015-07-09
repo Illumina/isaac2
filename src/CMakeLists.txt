@@ -5,11 +5,11 @@
 ## All rights reserved.
 ##
 ## This software is provided under the terms and conditions of the
-## Illumina Public License 1
+## GNU GENERAL PUBLIC LICENSE Version 3
 ##
-## You should have received a copy of the Illumina Public License 1
+## You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
 ## along with this program. If not, see
-## <https://github.com/sequencing/licenses/>.
+## <https://github.com/illumina/licenses/>.
 ##
 ################################################################################
 ##
@@ -21,7 +21,7 @@
 ##
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.0)
+cmake_minimum_required(VERSION 3.1.3)
 enable_testing()
 
 if (DEFINED CMAKE_BUILD_TYPE)
@@ -38,7 +38,7 @@ set(iSAAC_STRING "iSAAC")
 # the branch builds will never upgrade the properly released version 
 set(iSAAC_VERSION_MAJOR 02)
 set(iSAAC_VERSION_MINOR 15)
-set(iSAAC_VERSION_PATCH 04)
+set(iSAAC_VERSION_PATCH 07)
 set(iSAAC_VERSION_DEVEL 09)
 set(iSAAC_VERSION_FULL "${iSAAC_STRING}-${iSAAC_VERSION_MAJOR}.${iSAAC_VERSION_MINOR}.${iSAAC_VERSION_PATCH}.${iSAAC_VERSION_DEVEL}")
 
@@ -107,7 +107,7 @@ endif( NOT ${CMAKEBOOSTROOT} STREQUAL "" )
 set(BOOST_REDIST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../redist")
 
 # required boost libraries
-set (iSAAC_BOOST_VERSION 1.53.0)
+set (iSAAC_BOOST_VERSION 1.58.0)
 set (iSAAC_BOOST_COMPONENTS date_time filesystem iostreams program_options
                                   regex serialization system thread)
 set (Boost_USE_MULTITHREAD ON)

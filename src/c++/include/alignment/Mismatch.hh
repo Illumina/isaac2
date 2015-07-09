@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file Mismatch.hh
  **
@@ -120,7 +120,7 @@ unsigned countMatches(
 {
     return countMatches(sequenceBegin, sequenceEnd,
                         referenceBegin, referenceEnd,
-                        &boost::cref<typename std::iterator_traits<SequenceIteratorT>::value_type>);
+                        [](typename std::iterator_traits<SequenceIteratorT>::value_type c){return c;});
 }
 
 template <typename SequenceIteratorT, typename ReferenceIteratorT, typename BaseExtractor>
@@ -155,7 +155,7 @@ unsigned countMismatches(
 {
     return countMismatches(sequenceBegin, sequenceEnd,
                            referenceBegin, referenceEnd,
-                           &boost::cref<typename std::iterator_traits<SequenceIteratorT>::value_type>);
+                           [](typename std::iterator_traits<SequenceIteratorT>::value_type c){return c;});
 }
 
 

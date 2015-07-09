@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file testOverlappingEndsClipper.cpp
  **
@@ -259,7 +259,8 @@ void TestOverlappingEndsClipper::testEverything()
 static const isaac::reference::Contig makeContig(const std::string forward, long &firstPosOffset)
 {
     std::string::const_iterator begin = std::find_if(forward.begin(), forward.end(),
-                                                     boost::bind(&boost::cref<char>, _1) != ' ');
+                                                     [](char c){return c != ' ';});
+//                                                     boost::bind(&boost::cref<char>, _1) != ' ');
     isaac::reference::Contig ret(0, "vasja");
     ret.forward_ = std::vector<char>(begin, forward.end());
     firstPosOffset = -std::distance(forward.begin(), begin);

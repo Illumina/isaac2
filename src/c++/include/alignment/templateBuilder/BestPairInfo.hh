@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file BestPairInfo.hh
  **
@@ -24,8 +24,8 @@
 #include <boost/lambda/lambda.hpp>
 #include <boost/lambda/bind.hpp>
 
+#include "../../common/StaticVector.hh"
 #include "common/Debug.hh"
-#include "common/FiniteCapacityVector.hh"
 
 namespace isaac
 {
@@ -316,7 +316,7 @@ struct BestPairInfo
     }
     // potentially this needs to hold all the combinations of individual fragment alignments (TRACKED_REPEATS_MAX_ONE_READ * TRACKED_REPEATS_MAX_ONE_READ).
     // But repeat scattering hardly justifies to keeping this many equivalent pairs.
-    typedef isaac::common::FiniteCapacityVector<FragmentIterator, TRACKED_REPEATS_MAX_ONE_READ> FragmentIteratorVector;
+    typedef isaac::common::StaticVector<FragmentIterator, TRACKED_REPEATS_MAX_ONE_READ> FragmentIteratorVector;
     // corresponding entries represent read pairs. All read pairs in repeatAlignments_ represent alignments of the same bestTemplateScore_ to the repeat
     static const unsigned READS_IN_A_PAIR = 2;
     PairInfo info_;

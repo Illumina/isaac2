@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file GappedAligner.hh
  **
@@ -67,12 +67,12 @@ protected:
     const bool smartSmithWaterman_;
     BandedSmithWaterman bandedSmithWaterman_;
 
-    common::FiniteCapacityVector<unsigned, 2> hashedQueryTile_;
-    common::FiniteCapacityVector<unsigned, 2> hashedQueryCluster_;
-    common::FiniteCapacityVector<unsigned, 2> hashedQueryReadIndex_;
+    common::StaticVector<unsigned, 2> hashedQueryTile_;
+    common::StaticVector<unsigned, 2> hashedQueryCluster_;
+    common::StaticVector<unsigned, 2> hashedQueryReadIndex_;
 
     // initialize all k-mers to the magic value -1 (NOT_FOUND)
-    common::FiniteCapacityVector<unsigned short, oligo::MaxKmer<HASH_KMER_LENGTH, unsigned short>::value + 1> queryKmerOffsets_;
+    common::StaticVector<unsigned short, oligo::MaxKmer<HASH_KMER_LENGTH, unsigned short>::value + 1> queryKmerOffsets_;
     static const unsigned short UNINITIALIZED_OFFSET_MAGIC = static_cast<unsigned short>(-1);
     static const unsigned short REPEAT_OFFSET_MAGIC = static_cast<unsigned short>(-2);
     // count of hits required to assume that part of the sequence will anchor at a position.

@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentBinner.hh
  **
@@ -55,9 +55,12 @@ public:
         const alignment::FragmentMetadata &fragment = bamTemplate.getFragmentMetadata(fragmentIndex);
         const alignment::FragmentMetadata &mate = bamTemplate.getMateFragmentMetadata(fragment);
 
-        const unsigned mateStorageBin = mate.isNoMatch() && fragment.isNoMatch() ?
-            0 :
-            binIndexMap.getBinIndex(mate.getFStrandReferencePosition());
+//        const unsigned mateStorageBin = mate.isNoMatch() && fragment.isNoMatch() ?
+//            0 :
+//            binIndexMap.getBinIndex(mate.getFStrandReferencePosition());
+        // reads are currently stored in every bin that they cover. This means dupe detection will see
+        // the reverse alignment duplicate candidates even if they begin in different bins.
+        const unsigned mateStorageBin = 0;
 
         const io::FragmentHeader header(bamTemplate, fragment, mate, barcodeIdx, mateStorageBin);
         ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(header.clusterId_, "FragmentPacker::packPairedFragment " << header << " " << fragment);
@@ -181,7 +184,7 @@ private:
         const bool splitRead,
         BinMetadata &binMetadata);
 
-    typedef common::FiniteCapacityVector<unsigned, FRAGMENT_BINS_MAX * 2> FragmentBins;
+    typedef common::StaticVector<unsigned, FRAGMENT_BINS_MAX * 2> FragmentBins;
     void getFragmentStorageBins(const io::FragmentAccessor &fragment, FragmentBins &bins);
 };
 

@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FileBufWithReopen.hh
  **
@@ -175,7 +175,10 @@ public:
         {
             //flush any pending data before reopening a (usually) different file
             //TODO: make some sensible error reporting...
-            ISAAC_ASSERT_MSG(0 == this->pubsync(), "TODO: make some sensible error reporting...");
+            if(0 != this->pubsync())
+            {
+                BOOST_THROW_EXCEPTION(common::IoException(errno, "Failed to flush pending data"));
+            }
         }
     }
 

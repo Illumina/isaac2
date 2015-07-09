@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file FragmentBuilder.cpp
  **
@@ -218,6 +218,10 @@ unsigned FragmentMetadata::updateAlignment(
         const Cigar::OpCode opCode = cigar.second;
         if (opCode == Cigar::ALIGN)
         {
+            ISAAC_ASSERT_MSG(std::size_t(currentPosition + arg) <= contigAnnotations.at(contigId).size(),
+                             "overshooting the annotation contigId:" << contigId <<
+                             " currentPosition:" << currentPosition <<
+                             " arg:" << arg);
             // scan backwards so that it's easier to check for k-uniqueness
             this->matchesInARow = std::max(
                 this->matchesInARow,

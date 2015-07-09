@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file readMetadata.cpp
  **
@@ -71,7 +71,7 @@ unsigned getTotalReadLength(const ReadMetadataList &readMetadataList)
         readMetadataList.begin(), readMetadataList.end(), 0U,
         boost::bind(std::plus<unsigned>(),
              _1,
-             boost::bind<unsigned>(&flowcell::ReadMetadata::getLength, _2)));
+             boost::bind(&flowcell::ReadMetadata::getLength, _2)));
 }
 
 unsigned getMaxCycleNumber(const ReadMetadataList &readMetadataList)
@@ -80,7 +80,7 @@ unsigned getMaxCycleNumber(const ReadMetadataList &readMetadataList)
         readMetadataList.begin(), readMetadataList.end(), 0U,
         boost::bind(std::plus<unsigned>(),
              _1,
-             boost::bind<unsigned>(&flowcell::ReadMetadata::getLastCycle, _2)));
+             boost::bind(&flowcell::ReadMetadata::getLastCycle, _2)));
 }
 
 std::vector<unsigned> getAllCycleNumbers(const ReadMetadataList &readMetadataList)

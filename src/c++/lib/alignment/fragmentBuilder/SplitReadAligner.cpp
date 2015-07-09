@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file SplitReadAligner.cpp
  **
@@ -134,7 +134,7 @@ bool SplitReadAligner::alignSimpleDeletion(
 //    assert(0);
     // number of tail mismatches when deletion is not introduced
     const unsigned tailMismatches = countMismatches(
-        breakpointIterator, headEndReferenceIterator, headReference.end(), tailLength, &boost::cref<char>);
+        breakpointIterator, headEndReferenceIterator, headReference.end(), tailLength, [](char c){return c;});
     if (!tailMismatches)
     {
         ISAAC_THREAD_CERR_DEV_TRACE("alignSimpleDeletion: no point to try, the head alignment is already good enough");
@@ -150,11 +150,11 @@ bool SplitReadAligner::alignSimpleDeletion(
     // number of mismatches before breakpoint when deletion is at the leftmost possible position
     unsigned leftRealignedMismatches = countMismatches(
         sequenceBegin + headAlignment.getBeginClippedLength(),
-        headReference.begin() + headAlignment.position, headReference.end(), headLength, &boost::cref<char>);
+        headReference.begin() + headAlignment.position, headReference.end(), headLength, [](char c){return c;});
 
     // number of mismatches after breakpoint when deletion is at the leftmost possible position
     unsigned rightRealignedMismatches = countMismatches(
-        breakpointIterator, tailBeginReferenceIterator, tailReference.end(), tailLength, &boost::cref<char>);
+        breakpointIterator, tailBeginReferenceIterator, tailReference.end(), tailLength, [](char c){return c;});
 
     ISAAC_THREAD_CERR_DEV_TRACE(" alignSimpleDeletion " <<
                                 tailMismatches << "htmm " << rightRealignedMismatches << ":" << leftRealignedMismatches << "rhtrmm:lhtrmm ");
@@ -359,7 +359,7 @@ bool SplitReadAligner::alignLeftAnchoredInversion(
     ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), "tailLength:" << tailLength);
     // number of tail mismatches when breakpoint is not introduced
     const unsigned tailMismatches = countMismatches(
-        headBreakpointIterator, headEndReferenceIterator, headReference.end(), tailLength, &boost::cref<char>);
+        headBreakpointIterator, headEndReferenceIterator, headReference.end(), tailLength, [](char c){return c;});
     if (!tailMismatches)
     {
         ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), "alignLeftAnchoredInversion: no point to try, the head alignment is already good enough");
@@ -375,11 +375,11 @@ bool SplitReadAligner::alignLeftAnchoredInversion(
     // number of mismatches before breakpoint when deletion is at the leftmost possible position
     unsigned leftRealignedMismatches = countMismatches(
         headSequenceBegin + headAlignment.getBeginClippedLength(),
-        headReference.begin() + headAlignment.position, headReference.end(), headLength, &boost::cref<char>);
+        headReference.begin() + headAlignment.position, headReference.end(), headLength, [](char c){return c;});
 
     // number of mismatches after breakpoint when deletion is at the leftmost possible position
     unsigned rightRealignedMismatches = countMismatches(
-        tailBreakpointIterator, tailBeginReferenceIterator, std::reverse_iterator<std::vector<char>::const_iterator>(tailReference.begin()), tailLength, &boost::cref<char>);
+        tailBreakpointIterator, tailBeginReferenceIterator, std::reverse_iterator<std::vector<char>::const_iterator>(tailReference.begin()), tailLength, [](char c){return c;});
 
     ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), " alignLeftAnchoredInversion " <<
                                 tailMismatches << "htmm " << rightRealignedMismatches << ":" << leftRealignedMismatches << "rhtrmm:lhtrmm ");
@@ -403,9 +403,9 @@ bool SplitReadAligner::alignLeftAnchoredInversion(
     }
 
 //    ISAAC_THREAD_CERR << "std::distance(headReference.begin(), headEndReferenceIterator):" << std::distance(headReference.begin(), bestLocation.headEndReferenceIterator_) << std::endl;
-    const int inversionLength = -boost::numeric_cast<int>(std::distance(headReference.begin(), bestLocation.headReferenceIterator_) - tailAlignment.position);
+    const int distance = -boost::numeric_cast<int>(std::distance(headReference.begin(), bestLocation.headReferenceIterator_) - tailAlignment.position);
     return mergeInversionAlignments(cigarBuffer, headAlignment, tailAlignment, bestLocation.breakpointOffset_,
-                                    contigList, kUniqenessAnnotation, bestLocation.getMistmatches(), inversionLength, readMetadataList);
+                                    contigList, kUniqenessAnnotation, bestLocation.getMistmatches(), distance, readMetadataList);
 }
 
 
@@ -417,14 +417,14 @@ bool SplitReadAligner::mergeInversionAlignments(
     const reference::ContigList &contigList,
     const isaac::reference::ContigAnnotations &kUniqenessAnnotation,
     const unsigned bestMismatches,
-    const int deletionLength,
+    const int distance,
     const flowcell::ReadMetadataList &readMetadataList) const
 {
     const long beginClippingOffset = headAlignment.getBeginClippedLength();
     const unsigned beginMapped = bestOffset - beginClippingOffset;
 
     const unsigned sws = alignmentCfg_.normalizedMismatchScore_ * bestMismatches + alignmentCfg_.normalizedGapOpenScore_ +
-        std::min(alignmentCfg_.normalizedMaxGapExtendScore_, (unsigned(std::abs(deletionLength) - 1)) * alignmentCfg_.normalizedGapExtendScore_);
+        std::min(alignmentCfg_.normalizedMaxGapExtendScore_, (unsigned(std::abs(distance) - 1)) * alignmentCfg_.normalizedGapExtendScore_);
     if (headAlignment.smithWatermanScore > sws || (headAlignment.smithWatermanScore == sws && headAlignment.getMismatchCount() > bestMismatches))
     {
         const unsigned cigarOffset = cigarBuffer.size();
@@ -442,14 +442,14 @@ bool SplitReadAligner::mergeInversionAlignments(
             {
                 cigarBuffer.addOperation(tailAlignment.contigId, Cigar::CONTIG);
             }
-            cigarBuffer.addOperation(deletionLength, Cigar::DELETE);
+            cigarBuffer.addOperation(distance, Cigar::DELETE);
         }
         else
         {
             ISAAC_ASSERT_MSG(false, "TODO: Deal with this situation. The code here is a copy from deletion processing and is invalid");
             // prevent cigars starting from deletion.
             headAlignment.contigId = tailAlignment.contigId;
-            headAlignment.position += deletionLength;
+            headAlignment.position += distance;
         }
 
         const long endClippingOffset = tailAlignment.getBeginClippedLength();
@@ -561,7 +561,7 @@ bool SplitReadAligner::alignRightAnchoredInversion(
     // number of tail mismatches when breakpoint is not introduced
     const unsigned tailMismatches = countMismatches(
         headSequenceBegin + headAlignment.getBeginClippedLength(), headReferenceIterator - tailLength,
-        headReferenceIterator, tailLength, &boost::cref<char>)
+        headReferenceIterator, tailLength, [](char c){return c;})
             // assume all soft-clipped bases mismatch as they are the ones that will get revealed by introducing the inversion
             + headAlignment.getBeginClippedLength();
 //    ISAAC_THREAD_CERR << "tailMismatches:" << tailMismatches << std::endl;
@@ -574,13 +574,13 @@ bool SplitReadAligner::alignRightAnchoredInversion(
     // number of mismatches before breakpoint when breakpoint is at the leftmost possible position
     unsigned headRealignedMismatches = countMismatches(
         headBreakpointIterator,
-        headReferenceIterator, headReference.end(), headLength, &boost::cref<char>);
+        headReferenceIterator, headReference.end(), headLength, [](char c){return c;});
 
     // number of mismatches after breakpoint when breakpoint is at the leftmost possible position
     const unsigned realignedTailLength = firstBreakpointOffset - tailAlignment.getEndClippedLength();
     unsigned tailRealignedMismatches = countMismatches(
         tailBreakpointIterator.base(), tailReferenceIterator.base(),
-        tailReference.end(), realignedTailLength, &boost::cref<char>);
+        tailReference.end(), realignedTailLength, [](char c){return c;});
 
     ISAAC_THREAD_CERR_DEV_TRACE(" realignedTail   =" << common::makeFastIoString(tailBreakpointIterator.base(), tailBreakpointIterator.base() + realignedTailLength));
     ISAAC_THREAD_CERR_DEV_TRACE(" realignedTailRef=" << common::makeFastIoString(tailReferenceIterator.base(), tailReferenceIterator.base() + realignedTailLength));
@@ -608,9 +608,11 @@ bool SplitReadAligner::alignRightAnchoredInversion(
     }
 
 //    ISAAC_THREAD_CERR << "std::distance(headReference.begin(), headEndReferenceIterator):" << std::distance(headReference.begin(), bestLocation.headEndReferenceIterator_) << std::endl;
-    const int inversionLength = -boost::numeric_cast<int>(std::distance(headReference.begin(), bestLocation.headReferenceIterator_) - headAlignment.getEndClippedLength() - tailAlignment.position);
+    const int distance = -boost::numeric_cast<int>(
+        std::distance(headReference.begin(), bestLocation.headReferenceIterator_) - headAlignment.getEndClippedLength() -
+        tailAlignment.position + tailAlignment.getBeginClippedLength());
     return mergeRightAnchoredInversionAlignments(cigarBuffer, headAlignment, tailAlignment, bestLocation.breakpointOffset_,
-                                    contigList, kUniqenessAnnotation, bestLocation.getMistmatches(), inversionLength, readMetadataList);
+                                    contigList, kUniqenessAnnotation, bestLocation.getMistmatches(), distance, readMetadataList);
 }
 
 /**
@@ -645,7 +647,7 @@ bool SplitReadAligner::mergeRightAnchoredInversionAlignments(
                 cigarBuffer.addOperation(headAlignment.getEndClippedLength(), Cigar::SOFT_CLIP);
             }
             // no need to adjust sequence offset as the softclip will do the job
-            cigarBuffer.addOperation(headAlignment.getReadLength() - bestOffset - beginMapped - headAlignment.getEndClippedLength(), Cigar::FLIP);
+            cigarBuffer.addOperation(headAlignment.getReadLength() - bestOffset - headAlignment.getEndClippedLength() - beginMapped, Cigar::FLIP);
             if (tailAlignment.contigId != headAlignment.contigId)
             {
                 cigarBuffer.addOperation(tailAlignment.contigId, Cigar::CONTIG);
@@ -788,7 +790,7 @@ bool SplitReadAligner::alignSimpleInsertion(
     ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), " alignSimpleInsertion insertionLength:" << insertionLength << " tailLength:" << tailLength);
     const unsigned tailMismatches = countMismatches(tailIterator,
                                                     reference.begin() + headAlignment.getUnclippedPosition() + tailOffset, reference.end(),
-                                                    tailLength, &boost::cref<char>);
+                                                    tailLength, [](char c){return c;});
 
 /*
     if (!tailMismatches)
@@ -860,7 +862,7 @@ bool SplitReadAligner::mergeInsertionAlignments(
     const reference::Contig &contig = contigList[headAlignment.contigId];
     const unsigned headMismatches = countMismatches(sequenceBegin + clippingPositionOffset,
                                                     contig.forward_.begin() + headAlignment.position, contig.forward_.end(),
-                                                    leftMapped, &boost::cref<char>);
+                                                    leftMapped, [](char c){return c;});
 
     const unsigned newMismatches = headMismatches + bestMismatches;
     const unsigned sws = alignmentCfg_.normalizedMismatchScore_ * newMismatches + alignmentCfg_.normalizedGapOpenScore_ +

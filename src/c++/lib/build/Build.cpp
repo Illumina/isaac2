@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file Build.cpp
  **
@@ -244,19 +244,18 @@ const alignment::BinMetadataCRefList filterBins(
 
     if ("all" == binRegexString)
     {
-        std::copy(
-            boost::make_transform_iterator(bins.begin(), &boost::ref<const alignment::BinMetadata>),
-            boost::make_transform_iterator(bins.end(), &boost::ref<const alignment::BinMetadata>),
-            std::back_inserter(ret));
+        std::transform(bins.begin(), bins.end(), std::back_inserter(ret),
+                       [](const alignment::BinMetadata &bm){return boost::cref(bm);});
     }
     else if ("skip-empty" == binRegexString)
     {
-        std::remove_copy_if(
-            boost::make_transform_iterator(bins.begin(), &boost::ref<const alignment::BinMetadata>),
-            boost::make_transform_iterator(bins.end(), &boost::ref<const alignment::BinMetadata>),
-            std::back_inserter(ret),
-            boost::bind(&alignment::BinMetadata::isEmpty,
-                        boost::bind(&boost::reference_wrapper<const alignment::BinMetadata>::get, _1)));
+        BOOST_FOREACH(const alignment::BinMetadata &binMetadata, bins)
+        {
+            if (!binMetadata.isEmpty())
+            {
+                ret.push_back(boost::cref(binMetadata));
+            }
+        }
     }
     else // use regex to filter bins by name
     {
@@ -323,11 +322,13 @@ static alignment::BinMetadataCRefList breakUpUnalignedBin(
 
         if (putUnalignedInTheBack)
         {
-            std::transform(unalignedBinParts.begin(), unalignedBinParts.end(), std::back_inserter(bins), &boost::ref<const alignment::BinMetadata>);
+            std::transform(unalignedBinParts.begin(), unalignedBinParts.end(), std::back_inserter(bins),
+                           [](const alignment::BinMetadata &bm){return boost::cref(bm);});
         }
         else
         {
-            std::transform(unalignedBinParts.begin(), unalignedBinParts.end(), std::inserter(bins, bins.begin()), &boost::ref<const alignment::BinMetadata>);
+            std::transform(unalignedBinParts.begin(), unalignedBinParts.end(), std::inserter(bins, bins.begin()),
+                           [](const alignment::BinMetadata &bm){return boost::cref(bm);});
         }
     }
     return bins;

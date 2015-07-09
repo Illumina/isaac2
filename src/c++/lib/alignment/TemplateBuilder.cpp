@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file TemplateBuilder.cpp
  **
@@ -215,7 +215,7 @@ bool TemplateBuilder::buildTemplate(
 
 std::vector<FragmentMetadata>::const_iterator TemplateBuilder::getBestFragment(const std::vector<FragmentMetadata> &fragmentList) const
 {
-    common::FiniteCapacityVector<std::vector<FragmentMetadata>::const_iterator, templateBuilder::TRACKED_REPEATS_MAX_ONE_READ> bestFragments;
+    common::StaticVector<std::vector<FragmentMetadata>::const_iterator, templateBuilder::TRACKED_REPEATS_MAX_ONE_READ> bestFragments;
 
     unsigned bestFragmentScore = -1U;
     double bestFragmentLogProbability = -std::numeric_limits<double>::max();

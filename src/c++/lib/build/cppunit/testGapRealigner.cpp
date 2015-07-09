@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file testGapRealigner.cpp
  **
@@ -178,11 +178,13 @@ TestFragmentAccessor initFragment(
 {
     size_t unclippedPos = std::distance(read.begin(),
                                         std::find_if(read.begin(), read.end(),
-                                                     boost::bind(&boost::cref<char>, _1) != ' '));
+                                                     [](char c){return c != ' ';}));
+//                                                     boost::bind(&boost::cref<char>, _1) != ' '));
 
     size_t referenceLeftOverhang = std::distance(ref.begin(),
                                         std::find_if(ref.begin(), ref.end(),
-                                                     boost::bind(&boost::cref<char>, _1) != ' '));
+                                                     [](char c){return c != ' ';}));
+//                                                     boost::bind(&boost::cref<char>, _1) != ' '));
 
     reference::ReferencePosition fStrandPos(0, fragment.leftClipped() + unclippedPos);
 
@@ -370,8 +372,9 @@ RealignResult realign(
     std::vector<std::vector<reference::Contig> > contigList(
         1, std::vector<reference::Contig>(1, reference::Contig(0, "testContig")));
     std::remove_copy_if(ref.begin(), ref.end(), std::back_inserter(contigList.at(0).at(0).forward_),
-                        (boost::bind(&boost::cref<char>, _1) == '*' ||
-                            boost::bind(&boost::cref<char>, _1) == ' '));
+                        [](char c){return c == '*' || c == ' ';});
+//                        (boost::bind(&boost::cref<char>, _1) == '*' ||
+//                            boost::bind(&boost::cref<char>, _1) == ' '));
 
     if (binEndPos.isNoMatch())
     {

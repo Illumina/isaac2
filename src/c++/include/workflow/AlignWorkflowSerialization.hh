@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file AlignWorkflowSerialization.hh
  **
@@ -22,6 +22,8 @@
 
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/xml_iarchive.hpp>
+#include <boost/archive/xml_oarchive.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/serialization/vector.hpp>
 
@@ -94,7 +96,9 @@ void serialize(Archive &ar, BinChunk &bch, const unsigned int version)
 template <class Archive>
 void serialize(Archive &ar, BinDataDistribution &bdd, const unsigned int version)
 {
-    ar & boost::serialization::make_nvp<std::vector<BinChunk> >("dataDistribution_", bdd);
+    // Boost 1.58 does not clear vectors of vectors before loading
+    if (typename Archive::is_loading()) {bdd.clear(); }
+    ar & boost::serialization::make_nvp<std::vector<BinChunk> >("binDataDistribution_", bdd);
     ar & BOOST_SERIALIZATION_NVP(bdd.chunkSize_);
 }
 
@@ -131,8 +135,8 @@ void serialize(Archive &ar, TemplateLengthStatistics &tls, const unsigned int ve
     ar & BOOST_SERIALIZATION_NVP(tls.median_);
     ar & BOOST_SERIALIZATION_NVP(tls.lowStdDev_);
     ar & BOOST_SERIALIZATION_NVP(tls.highStdDev_);
-    ar & BOOST_SERIALIZATION_NVP(tls.bestModels_[0]);
-    ar & BOOST_SERIALIZATION_NVP(tls.bestModels_[1]);
+    ar & boost::serialization::make_nvp<TemplateLengthStatistics::AlignmentModel>("tls.bestModels_0", tls.bestModels_[0]);
+    ar & boost::serialization::make_nvp<TemplateLengthStatistics::AlignmentModel>("tls.bestModels_1", tls.bestModels_[1]);
     ar & BOOST_SERIALIZATION_NVP(tls.stable_);
     ar & BOOST_SERIALIZATION_NVP(tls.mateMin_);
     ar & BOOST_SERIALIZATION_NVP(tls.mateMax_);
@@ -141,7 +145,9 @@ void serialize(Archive &ar, TemplateLengthStatistics &tls, const unsigned int ve
 template <class Archive>
 void serialize(Archive &ar, MatchDistribution &md, const unsigned int version)
 {
-    ar & boost::serialization::make_nvp<std::vector<std::vector<unsigned> > >("dataDistribution_", md);
+    // Boost 1.58 does not clear vectors of vectors before loading
+    if (typename Archive::is_loading()) {md.clear(); }
+    ar & boost::serialization::make_nvp<std::vector<std::vector<unsigned> > >("matchDistribution_", md);
     ar & BOOST_SERIALIZATION_NVP(md.binSize_);
 }
 } //namespace alignment

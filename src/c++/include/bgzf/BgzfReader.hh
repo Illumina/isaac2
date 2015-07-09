@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file BgzfReader.hh
  **
@@ -24,8 +24,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include "../common/StaticVector.hh"
 #include "bgzf/Bgzf.hh"
-#include "common/FiniteCapacityVector.hh"
 #include "common/Threads.hpp"
 #include "io/FileBufWithReopen.hh"
 

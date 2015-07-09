@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file BpbToWigWorkflow.cpp
  **
@@ -120,7 +120,7 @@ void BpbToWigWorkflow::printWig(
     ISAAC_THREAD_CERR << "bitsPerValue " << bitsPerValue << std::endl;
     ISAAC_THREAD_CERR << "valueMask " << std::hex << unsigned(valueMask) << std::endl;
 
-    common::FiniteCapacityVector<char, 1024> outBuf;
+    common::StaticVector<char, 1024> outBuf;
 
     bitsetFile.read(reinterpret_cast<char*>(&bits), bytesPerValue);
     std::size_t bitPos = bitsPerValue;
@@ -194,7 +194,7 @@ void BpbToWigWorkflow::printBed(
     ReadType lastValue = 0;
     std::size_t lastContigPosition = 0;
     std::size_t bitPos = bitsPerValue;
-    common::FiniteCapacityVector<char, 1024> outBuf;
+    common::StaticVector<char, 1024> outBuf;
     BOOST_FOREACH(const reference::SortedReferenceMetadata::Contig &contig, contigs)
     {
         ISAAC_THREAD_CERR << contig << std::endl;

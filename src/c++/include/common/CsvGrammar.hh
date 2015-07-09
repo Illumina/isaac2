@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file CsvGrammar.hh
  **
@@ -27,12 +27,13 @@
 #include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/spirit/include/phoenix1_statements.hpp>
 #include <boost/spirit/include/support_istream_iterator.hpp>
-#include <boost/spirit/home/phoenix/statement/if.hpp>
-#include <boost/spirit/home/phoenix/statement/throw.hpp>
-#include <boost/spirit/home/phoenix/object/static_cast.hpp>
-#include <boost/spirit/home/phoenix/function/function.hpp>
-#include <boost/spirit/home/phoenix/bind.hpp>
-#include <boost/spirit/home/phoenix/object/construct.hpp>
+#include <boost/phoenix/statement/if.hpp>
+#include <boost/phoenix/statement/throw.hpp>
+#include <boost/phoenix/object/static_cast.hpp>
+#include <boost/phoenix/function/function.hpp>
+#include <boost/phoenix/bind.hpp>
+#include <boost/phoenix/object/construct.hpp>
+
 #include <boost/spirit/home/support/unused.hpp>
 
 namespace isaac

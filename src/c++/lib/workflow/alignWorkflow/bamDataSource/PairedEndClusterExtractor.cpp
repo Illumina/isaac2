@@ -4,11 +4,11 @@
  ** All rights reserved.
  **
  ** This software is provided under the terms and conditions of the
- ** Illumina Public License 1
+ ** GNU GENERAL PUBLIC LICENSE Version 3
  **
- ** You should have received a copy of the Illumina Public License 1
+ ** You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3
  ** along with this program. If not, see
- ** <https://github.com/sequencing/licenses/>.
+ ** <https://github.com/illumina/licenses/>.
  **
  ** \file PairedEndClusterExtractor.cpp
  **
@@ -84,7 +84,7 @@ void UnpairedReadsCache::storeUnpaired(
     IteratorT unpairedEnd,
     const flowcell::ReadMetadataList &readMetadataList)
 {
-    common::FiniteCapacityVector<char, 10240> bcl;
+    common::StaticVector<char, 10240> bcl;
     BOOST_FOREACH(const IndexRecord &idx, std::make_pair(unpairedBegin, unpairedEnd))
     {
         const flowcell::ReadMetadata &readMetadata = readMetadataList.at(!idx.getBlock().isReadOne());
