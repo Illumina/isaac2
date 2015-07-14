@@ -768,7 +768,8 @@ bool SplitReadAligner::alignSimpleInsertion(
 
     // Don't allow insertion to be placed within the first seed to capture the earliest possible location as
     // insertions directly reduce number of mismatches, thus causing unfair competition against non-gapped alignment candidates
-    const unsigned tailOffset = headSeedOffset + headSeedLength;
+    // Start from first unclipped base otherwise placing a best insertion could be problemmatic
+    const unsigned tailOffset = std::max(tailAlignment.getBeginClippedLength(), headSeedOffset + headSeedLength);
 
     const unsigned observedEnd = tailAlignment.getBeginClippedLength() + tailAlignment.getObservedLength();
     const unsigned insertionLength = boost::numeric_cast<unsigned>(headAlignment.getUnclippedPosition() - tailAlignment.getUnclippedPosition());
@@ -855,6 +856,7 @@ bool SplitReadAligner::mergeInsertionAlignments(
 
     const long clippingPositionOffset = headAlignment.getBeginClippedLength();
     const unsigned leftMapped = bestOffset - clippingPositionOffset;
+    ISAAC_ASSERT_MSG(leftMapped <= headAlignment.getReadLength(), "leftMapped " << leftMapped << " is too bit for read length " << headAlignment.getReadLength());
     const unsigned leftClipped = leftMapped ? clippingPositionOffset : clippingPositionOffset + insertionLength;
 
 // assertion check commented out to fix SAAC-731
@@ -863,6 +865,10 @@ bool SplitReadAligner::mergeInsertionAlignments(
     const unsigned headMismatches = countMismatches(sequenceBegin + clippingPositionOffset,
                                                     contig.forward_.begin() + headAlignment.position, contig.forward_.end(),
                                                     leftMapped, [](char c){return c;});
+
+    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), "headMismatches " << headMismatches);
+    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), "clippingPositionOffset " << clippingPositionOffset);
+    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(headAlignment.getCluster().getId(), "leftMapped " << leftMapped);
 
     const unsigned newMismatches = headMismatches + bestMismatches;
     const unsigned sws = alignmentCfg_.normalizedMismatchScore_ * newMismatches + alignmentCfg_.normalizedGapOpenScore_ +

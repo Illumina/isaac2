@@ -48,7 +48,7 @@ macro(install_files_recursively srcDir destDir pattern perm)
     foreach(templateFile ${templateFiles})
         get_filename_component(DIRNAME "${templateFile}" PATH)
         file(INSTALL DESTINATION ${destDir}/${DIRNAME} TYPE FILE
-             FILES ${srcDir}/${templateFile} PERMISSIONS ${perm})
+             FILES ${srcDir}/${templateFile} PERMISSIONS ${perm} PATTERN CMakeLists.txt EXCLUDE )
     endforeach(templateFile)
 endmacro(install_files_recursively)
 

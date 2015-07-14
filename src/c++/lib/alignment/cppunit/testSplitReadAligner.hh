@@ -49,20 +49,23 @@ private:
     void align(
         const std::string &read,
         const std::string &reference,
-        isaac::alignment::FragmentMetadataList &fragmentMetadataList);
+        isaac::alignment::FragmentMetadataList &fragmentMetadataList,
+        const unsigned clusterId = 0);
 
     void align(
         const std::string &readAlignment1,
         const std::string &readAlignment2,
         const std::string &reference,
-        isaac::alignment::FragmentMetadataList &fragmentMetadataList);
+        isaac::alignment::FragmentMetadataList &fragmentMetadataList,
+        const unsigned clusterId = 0);
 
     void align(
         const std::string &readAlignment1,
         const std::string &readAlignment2,
         const std::string &reference,
         const std::string &reference2,
-        isaac::alignment::FragmentMetadataList &fragmentMetadataList);
+        isaac::alignment::FragmentMetadataList &fragmentMetadataList,
+        const unsigned clusterId = 0);
 
     void align(
         const isaac::alignment::Cluster &cluster,

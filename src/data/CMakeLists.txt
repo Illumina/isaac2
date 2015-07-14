@@ -24,7 +24,7 @@ include ("${iSAAC_GLOBALS_CMAKE}")
 
 install(CODE "
     include (\"${iSAAC_MACROS_CMAKE}\")
-    configure_files_recursively (\"${CMAKE_CURRENT_SOURCE_DIR}\" \"${CMAKE_CURRENT_BINARY_DIR}\" \"*.dat\")
-    install_files_recursively (\"${CMAKE_CURRENT_BINARY_DIR}\" \"${iSAAC_ORIG_DATADIR}/data\" \"*.dat\" \"\${iSAAC_LIBRARY_PERMISSIONS}\")
+    configure_files_recursively (\"${CMAKE_CURRENT_SOURCE_DIR}\" \"${CMAKE_CURRENT_BINARY_DIR}/configured\" \"*\")
+    install_files_recursively (\"${CMAKE_CURRENT_BINARY_DIR}/configured\" \"${iSAAC_ORIG_DATADIR}/data\" \"*\" \"\${iSAAC_LIBRARY_PERMISSIONS}\")
     ")
 

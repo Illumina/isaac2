@@ -144,9 +144,10 @@ void TestSplitReadAligner::align(
     const std::string &readAlignment1,
     const std::string &readAlignment2,
     const std::string &reference,
-    isaac::alignment::FragmentMetadataList &fragmentMetadataList)
+    isaac::alignment::FragmentMetadataList &fragmentMetadataList,
+    const unsigned clusterId)
 {
-    align(readAlignment1, readAlignment2, reference, std::string(), fragmentMetadataList);
+    align(readAlignment1, readAlignment2, reference, std::string(), fragmentMetadataList, clusterId);
 }
 
 static isaac::alignment::AlignmentCfg alignmentCfg(MATCH_SCORE, MISMATCH_SCORE, GAP_OPEN_SCORE, GAP_EXTEND_SCORE, MIN_GAP_EXTEND_SCORE, 20000);
@@ -198,7 +199,8 @@ public:
 void TestSplitReadAligner::align(
     const std::string &read,
     const std::string &reference,
-    isaac::alignment::FragmentMetadataList &fragmentMetadataList)
+    isaac::alignment::FragmentMetadataList &fragmentMetadataList,
+    const unsigned clusterId)
 {
     fragmentMetadataList.resize(2);
 
@@ -209,6 +211,7 @@ void TestSplitReadAligner::align(
 
     //cluster is referenced from fragmentMetadataList by pointer. Don't destroy it.
     static isaac::alignment::Cluster cluster(1000);
+    cluster.setId(clusterId);
     testSimpleIndelAligner::ReadInit init(readWithoutSpaces, fragmentMetadataList[0].reverse);
     init >> cluster.at(0);
 
@@ -233,7 +236,8 @@ void TestSplitReadAligner::align(
     const std::string &readAlignment2,
     const std::string &reference,
     const std::string &reference2,
-    isaac::alignment::FragmentMetadataList &fragmentMetadataList)
+    isaac::alignment::FragmentMetadataList &fragmentMetadataList,
+    const unsigned clusterId)
 {
     fragmentMetadataList.resize(2);
     const long long reference1Offset = reference.find_first_not_of(' ');
@@ -246,6 +250,7 @@ void TestSplitReadAligner::align(
 
     //cluster is referenced from fragmentMetadataList by pointer. Don't destroy it.
     static isaac::alignment::Cluster cluster(1000);
+    cluster.setId(clusterId);
     testSimpleIndelAligner::ReadInit init(readWithoutSpaces, fragmentMetadataList[0].reverse);
     init >> cluster.at(0);
 
@@ -937,7 +942,7 @@ void TestSplitReadAligner::testEverything()
         align("ATTTGGTTAAGGTAGCGGTAAAAGCGTGTTACCGCAATGTTCTGTCTCTTATACAACATCTAGATGTGTAT"
                                                                        "TAGAGACAGGTGCACCGCCTATACACATCTAGAATAAGAGACAGGTGCACCGCCTATACACATCTAGA",
               "ATTTGGTTAAGGTAGCGGTAAAAGCGTGTTACCGCAATGTTCTGTCTCTTATACAACTAGAGACAGGTGCACCGCCTATACACATCTAGAATAAGAGACAGGTGCACCGCCTATACACATCTAGA",
-              fragmentMetadataList);
+              fragmentMetadataList, 2662248);
 
         CPPUNIT_ASSERT_EQUAL(std::size_t(3), fragmentMetadataList.size());
         CPPUNIT_ASSERT_EQUAL(std::string("57M14I68M"), fragmentMetadataList[2].getCigarString());
@@ -962,6 +967,32 @@ void TestSplitReadAligner::testEverything()
         CPPUNIT_ASSERT_EQUAL(8U, unsigned(fragmentMetadataList[2].leftClipped()));
         CPPUNIT_ASSERT_EQUAL(7U, unsigned(fragmentMetadataList[2].rightClipped()));
     }
+
+    { // segfault when left clipping overlaps head anchor
+        isaac::alignment::FragmentMetadataList fragmentMetadataList(2);
+        fragmentMetadataList[0].leftClipped() = 58;
+        fragmentMetadataList[0].firstAnchor_ = isaac::alignment::Anchor(28,28, true);
+        fragmentMetadataList[0].lastAnchor_ = isaac::alignment::Anchor(28,28, true);
+        fragmentMetadataList[1].leftClipped() = 58;
+
+        align("ATTTGGTTAAGGTAGCGGTAAAAGCGTGTTACCGCAATGTTCTGTCTCTTATACAACAT"
+                                                                       "TAGAGACAGGTGCACCGCCTATACACATCTAGAATAAGAGACAGGTGCACCGCCTATACACATCTAGA",
+              "ATTTGGTTAAGGTAGCGGTAAAAGCGTGTTACCGCAATGTTCTGTCTCTTATACAACTAGAGACAGGTGCACCGCCTATACACATCTAGAATAAGAGACAGGTGCACCGCCTATACACATCTAGA",
+              fragmentMetadataList, 2662248);
+
+        CPPUNIT_ASSERT_EQUAL(std::size_t(2), fragmentMetadataList.size());
+        CPPUNIT_ASSERT_EQUAL(std::string("58S67M2S"), fragmentMetadataList[0].getCigarString());
+        CPPUNIT_ASSERT_EQUAL(38U, fragmentMetadataList[0].getMismatchCount());
+        CPPUNIT_ASSERT_EQUAL(38U, fragmentMetadataList[0].getEditDistance());
+        CPPUNIT_ASSERT_EQUAL(58U, unsigned(fragmentMetadataList[0].leftClipped()));
+        CPPUNIT_ASSERT_EQUAL(0U, unsigned(fragmentMetadataList[0].rightClipped()));
+        CPPUNIT_ASSERT_EQUAL(std::string("58S69M"), fragmentMetadataList[1].getCigarString());
+        CPPUNIT_ASSERT_EQUAL(1U, fragmentMetadataList[1].getMismatchCount());
+        CPPUNIT_ASSERT_EQUAL(1U, fragmentMetadataList[1].getEditDistance());
+        CPPUNIT_ASSERT_EQUAL(58U, unsigned(fragmentMetadataList[1].leftClipped()));
+        CPPUNIT_ASSERT_EQUAL(0U, unsigned(fragmentMetadataList[1].rightClipped()));
+    }
+
 
     { //verifying that it picks the earliest possible position for the insertion but not within the anchoring seed
         isaac::alignment::FragmentMetadataList fragmentMetadataList;

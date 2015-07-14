@@ -68,6 +68,7 @@ public:
         const unsigned nameLength);
     unsigned long getTile() const {return tile_;}
     unsigned long getId() const {return id_;}
+    void setId(const unsigned long id) {id_ = id;}
     bool getPf() const {return pf_;}
     ClusterXy getXy() const {return xy_;}
     int getBarcodeLength() const { return barcodeLength_; }
