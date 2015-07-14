@@ -281,6 +281,22 @@ pair machting the dominant template orientation, the MAPQ is min(SM, 60). The MA
 unknown (255) for alignments that don't have enough evidence to be correctly scored. This behavior depends on the 
 [--dodgy-alignment-score](#isaac-align) argument.
 
+# Multiplexed data
+
+iSAAC supports processing of multiplexed data. A sample sheet is required to describe the required
+output. Below is an example of a valid sample sheet:
+
+    FCID,Lane,SampleID,SampleRef,Barcode,Description,Control,Recipe,Operator,Project
+    A805CKABXX,1,AR005,human,ACAGTG,Library testing,N,101+7,RP,Demo
+    A805CKABXX,1,AR008,human,ACTTGA,Library testing,N,101+7,RP,Demo
+    A805CKABXX,1,PhiX,phix,TTAGGC,Library testing,Y,101+7,RP,Demo
+    A805CKABXX,1,,unknown,Undetermined,Ignored clusters with unmatched barcodes for lane 1,N,101+7,RP,Demo
+
+A sample sheet can be used to split the data even if it does not have barcodes. Such data can be
+configured to produce a separate output per lane or a combination of lanes. Leave the Barcode column
+empty if the barcode cycles are not present in the data. For multi-component barcodes use '-' to
+separate the components.
+
 # Toolkit Reference
 
 ## isaac-align
