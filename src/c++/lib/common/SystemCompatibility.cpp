@@ -159,7 +159,9 @@ namespace common
 
 int linuxFallocate(int fd, std::size_t offset, std::size_t len)
 {
-    return fallocate(fd, FALLOC_FL_KEEP_SIZE, offset, len);
+//    fallocate is not available on CentOS 5
+//    return fallocate(fd, FALLOC_FL_KEEP_SIZE, offset, len);
+    return posix_fallocate(fd, offset, len);
 }
 
 

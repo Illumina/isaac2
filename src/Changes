@@ -1,3 +1,6 @@
+iSAAC-02.15.07.16
+* SAAC-815 fallocate is not available on CentOS 5
+
 iSAAC-02.15.07.14
 * SAAC-814 update README with quick start guide
 * SAAC-813 mergeInsertionAlignments crashes with --seed step=3
