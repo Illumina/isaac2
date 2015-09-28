@@ -164,6 +164,7 @@ void serialize(Archive &ar, TileMetadata &tm, const unsigned int version)
     ar & BOOST_SERIALIZATION_NVP(tm.lane_);
     ar & BOOST_SERIALIZATION_NVP(tm.laneString_);
     ar & BOOST_SERIALIZATION_NVP(tm.clusterCount_);
+    ar & BOOST_SERIALIZATION_NVP(tm.originalTileIndex_);
     ar & BOOST_SERIALIZATION_NVP(tm.index_);
 }
 

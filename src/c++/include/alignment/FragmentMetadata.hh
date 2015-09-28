@@ -651,6 +651,8 @@ inline std::ostream &operator<<(std::ostream &os, const FragmentMetadata &f)
               << f.isWellAnchored() << "wa "
               << f.firstAnchor_<< "fa "
               << f.lastAnchor_<< "la "
+              << f.leftClipped() << "lc "
+              << f.rightClipped() << "rc "
               << common::makeFastIoString(f.getCluster().nameBegin(), f.getCluster().nameEnd())
               << ")";
 }

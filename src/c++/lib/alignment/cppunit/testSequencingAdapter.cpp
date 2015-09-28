@@ -85,7 +85,7 @@ static isaac::alignment::AlignmentCfg alignmentCfg(ELAND_MATCH_SCORE, ELAND_MISM
 TestSequencingAdapter::TestSequencingAdapter() :
     readMetadataList(getReadMetadataList()),
     seedMetadataList(getSeedMetadataList()),
-    flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, false, 8, 0, std::vector<unsigned>(),
+    flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, isaac::flowcell::FastqFlowcellData(false, '!'), 8, 0, std::vector<unsigned>(),
                                          readMetadataList, seedMetadataList, "blah")),
     ungappedAligner_(alignmentCfg),
     irrelevantQualities("CFCEEBFHEHDGBDBEDDEGEHHFHEGBHHDDDB<F>FGGBFGGFGCGGGDGGDDFHHHFEGGBGDGGBGGBEGEGGBGEHDHHHGGGGGDGGGG?GGGGDBEDDEGEHHFHEGBHHDDDB<F>FGGBFGGFGCGGGDGGDDFHHHFEGGBGDGDBEDDEGEHHFHEGBHHDDDB<F>FGGBFGGFGCGGGDGGDDFHHHFEGGBGDG")
@@ -98,6 +98,7 @@ TestSequencingAdapter::TestSequencingAdapter() :
     matePairAdapters.push_back(isaac::alignment::matchSelector::SequencingAdapter(testAdapterMetadataRight));
     standardAdapters.push_back(isaac::alignment::matchSelector::SequencingAdapter(standardAdapterMetadataLeft));
     standardAdapters.push_back(isaac::alignment::matchSelector::SequencingAdapter(standardAdapterMetadataRight));
+    cigarBuffer_.reserve(1024);
 }
 
 void TestSequencingAdapter::setUp()

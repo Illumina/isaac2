@@ -87,6 +87,7 @@ public:
     unsigned seedLength;
     bool allowVariableFastqReadLength;
     bool allowVariableReadLength;
+    char fastqQ0;
     unsigned laneNumberMax;
     unsigned readNameLength;
     bool cleanupIntermediary;
@@ -154,6 +155,7 @@ public:
     int bamGzipLevel;
     std::vector<std::string> bamHeaderTags;
     std::string bamPuFormat;
+    bool bamProduceMd5;
     double expectedBgzfCompressionRatio;
     bool singleLibrarySamples;
     bool keepDuplicates;

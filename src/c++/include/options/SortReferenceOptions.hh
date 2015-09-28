@@ -45,7 +45,6 @@ public:
     boost::filesystem::path genomeNeighborsFile;
     boost::filesystem::path outFile;
     unsigned int repeatThreshold;
-    std::string parallelSort;
 };
 
 } // namespace options

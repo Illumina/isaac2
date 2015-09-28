@@ -103,18 +103,19 @@ isaac::alignment::Cigar cigarFromString(const std::string cigarString)
     std::vector<std::string> numbers;
     std::vector<std::string> letters;
     boost::algorithm::split(numbers, cigarString, boost::algorithm::is_any_of("MIDNSHP=XCBF"));
+    numbers.erase(std::remove_if(numbers.begin(), numbers.end(), boost::bind(&std::string::empty, _1)), numbers.end());
     boost::algorithm::split(letters, cigarString, boost::algorithm::is_digit());
     letters.erase(std::remove_if(letters.begin(), letters.end(), boost::bind(&std::string::empty, _1)), letters.end());
 
-    isaac::alignment::Cigar cigar;
+    ISAAC_ASSERT_MSG(letters.size() == numbers.size(), "Bad Split " <<
+        "cigarString:" << cigarString <<
+        "numbers:" << numbers.size() <<
+        "letters:" << letters.size())
+    isaac::alignment::Cigar cigar; cigar.reserve(1024);
     for (std::vector<std::string>::const_iterator n = numbers.begin(), l = letters.begin(); numbers.end() != n && letters.end() != l; ++n, ++l)
     {
         unsigned long len = boost::lexical_cast<unsigned long>(*n);
-        do
-        {
-            cigar.push_back(isaac::alignment::Cigar::encode(len, cigarOpCodeFromLetter(*l->begin())));
-        }
-        while (len);
+        cigar.addOperation(len, cigarOpCodeFromLetter(*l->begin()));
     }
     return cigar;
 }

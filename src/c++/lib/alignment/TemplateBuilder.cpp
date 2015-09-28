@@ -306,7 +306,7 @@ FragmentMetadata TemplateBuilder::cloneWithCigar(const FragmentMetadata &right)
     FragmentMetadata ret = right;
     ret.cigarBuffer = &cigarBuffer_;
     ret.cigarOffset = cigarBuffer_.size();
-    cigarBuffer_.insert(cigarBuffer_.end(), right.cigarBegin(), right.cigarEnd());
+    cigarBuffer_.addOperations(right.cigarBegin(), right.cigarEnd());
     return ret;
 }
 
@@ -319,7 +319,7 @@ FragmentMetadata TemplateBuilder::trimForwardPEAdaptor(
 {
     // trim forward fragment
     const unsigned cigarOffset = cigarBuffer_.size();
-    cigarBuffer_.insert(cigarBuffer_.end(), forwardFragment.cigarBegin(), forwardFragment.cigarEnd());
+    cigarBuffer_.addOperations(forwardFragment.cigarBegin(), forwardFragment.cigarEnd());
     reference::ReferencePosition revPos = forwardFragment.getRStrandReferencePosition();
     unsigned long clip = 0;
     unsigned long align = 0;
@@ -365,11 +365,11 @@ FragmentMetadata TemplateBuilder::trimForwardPEAdaptor(
     }
     if (align)
     {
-        cigarBuffer_.push_back(Cigar::encode(align, Cigar::ALIGN));
+        cigarBuffer_.addOperation(align, Cigar::ALIGN);
     }
     if (clip)
     {
-        cigarBuffer_.push_back(Cigar::encode(clip, Cigar::SOFT_CLIP));
+        cigarBuffer_.addOperation(clip, Cigar::SOFT_CLIP);
     }
     FragmentMetadata ret = forwardFragment;
     ret.resetAlignment();
@@ -435,13 +435,13 @@ FragmentMetadata TemplateBuilder::trimReversePEAdaptor(
 
     if (clip)
     {
-        cigarBuffer_.push_back(Cigar::encode(clip, Cigar::SOFT_CLIP));
+        cigarBuffer_.addOperation(clip, Cigar::SOFT_CLIP);
     }
     if (align)
     {
-        cigarBuffer_.push_back(Cigar::encode(align, Cigar::ALIGN));
+        cigarBuffer_.addOperation(align, Cigar::ALIGN);
     }
-    cigarBuffer_.insert(cigarBuffer_.end(), current + 1, reverseFragment.cigarEnd());
+    cigarBuffer_.addOperations(current + 1, reverseFragment.cigarEnd());
 
     FragmentMetadata ret = reverseFragment;
     ret.resetAlignment();
@@ -562,7 +562,7 @@ void TemplateBuilder::decideOnAsGoodPair(
         {
             ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragments[0].front().getCluster().getId(), "asgood skip2 " << pairInfo);
         }
-        else if (ret.info_.matchModel_)
+        else if (ret.matchModel())
         {
             ret.appendBest(updatedAlignments.first, updatedAlignments.second);
             ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragments[0].front().getCluster().getId(), " append1 " << ret);
@@ -580,7 +580,7 @@ void TemplateBuilder::decideOnAsGoodPair(
             ret.resetBest(pairInfo, updatedAlignments.first, updatedAlignments.second);
             ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragments[0].front().getCluster().getId(), " reset as good2 " << ret);
         }
-        else if (!ret.info_.matchModel_)
+        else if (!ret.matchModel())
         {
             if (pairInfo.matchModel_)
             {
@@ -852,8 +852,8 @@ bool TemplateBuilder::rescueDisjointedTemplate(
 {
     const FragmentMetadata *bestDisjointedFragments[READS_IN_A_PAIR] =
     {
-        knownBestPair.empty() ? &*getBestFragment(fragments[0]) : &knownBestPair.repeats_.front().getFragmentMetadata(0),
-        knownBestPair.empty() ? &*getBestFragment(fragments[1]) : &knownBestPair.repeats_.front().getFragmentMetadata(1)
+        knownBestPair.empty() ? &*getBestFragment(fragments[0]) : &knownBestPair.repeat(0).getFragmentMetadata(0),
+        knownBestPair.empty() ? &*getBestFragment(fragments[1]) : &knownBestPair.repeat(0).getFragmentMetadata(1)
     };
 
     ret.clear();
@@ -896,10 +896,10 @@ bool TemplateBuilder::rescueDisjointedTemplate(
                     std::pair<FragmentMetadata &, FragmentMetadata&> updatedAlignments =
                         checkTrimPEAdaptor(contigList, kUniqenessAnnotation, readMetadataList, *orphanIterator, *shadowList_.begin());
 
-                    if (1 == knownBestPair.repeats_.size())
+                    if (1 == knownBestPair.repeatsCount())
                     {
                         // carry over the non k-unique anchor if we happen to rescue the shadow which we've discovered through seed matches
-                        const FragmentMetadata &knownShadowRead = knownBestPair.repeats_.front().getFragmentMetadata(updatedAlignments.second.getReadIndex());
+                        const FragmentMetadata &knownShadowRead = knownBestPair.repeat(0).getFragmentMetadata(updatedAlignments.second.getReadIndex());
                         if (knownShadowRead == updatedAlignments.second)
                         {
                             updatedAlignments.second.highRepeat = knownShadowRead.highRepeat;
@@ -909,7 +909,7 @@ bool TemplateBuilder::rescueDisjointedTemplate(
 
                     const templateBuilder::PairInfo pairInfo(updatedAlignments.first, updatedAlignments.second, true);
                     ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(orphan.getCluster().getId(), "    comparing : " << ret << " vs " << pairInfo);
-                    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(orphan.getCluster().getId(), "    comparing : " << ret.info_.logProbability_ - pairInfo.logProbability_);
+                    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(orphan.getCluster().getId(), "    comparing : " << ret.logProbability() - pairInfo.logProbability_);
                     if (ret.isWorseThan(pairInfo))
                     {
                         bestOrphanIndex = orphanIndex;
@@ -994,12 +994,12 @@ void TemplateBuilder::pickRandomRepeatAlignment(
     const templateBuilder::BestPairInfo &bestPair,
     BamTemplate &bamTemplate) const
 {
-    const unsigned repeatIndex = scatterRepeats_ ? clusterId % bestPair.repeats_.size() : 0;
+    const unsigned repeatIndex = scatterRepeats_ ? clusterId % bestPair.repeatsCount() : 0;
 
-    bamTemplate = bestPair.repeats_[repeatIndex];
+    bamTemplate = bestPair.repeat(repeatIndex);
 
     ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(clusterId, "TemplateBuilder::pickRandomRepeatAlignment: Picked repeat " << repeatIndex <<
-                                " out of " << bestPair.repeats_.size() << " " << bamTemplate);
+                                " out of " << bestPair.repeatsCount() << " " << bamTemplate);
 }
 
 void TemplateBuilder::scoreRescuedTemplate(
@@ -1028,7 +1028,7 @@ void TemplateBuilder::scoreRescuedTemplate(
 
     bamTemplate.setAlignmentScore(computeAlignmentScore(
         restOfGenomeCorrection.getRogCorrection(),
-        bestPair.info_.probability(),
+        bestPair.probability(),
         otherTemplateProbability));
 
     bamTemplate.setProperPair(
@@ -1037,7 +1037,7 @@ void TemplateBuilder::scoreRescuedTemplate(
 
     ISAAC_ASSERT_MSG(
         bamTemplate.getAlignmentScore() < 4 || 1 == bestPair.removeRepeatDuplicates() ,
-        "alignment score too high for a repeat of " << bestPair.repeats_.size() <<
+        "alignment score too high for a repeat of " << bestPair.repeatsCount() <<
         ":" << bamTemplate <<
         common::makeFastIoString(
             r1Alignment.getRead().getForwardSequence().begin(), r1Alignment.getRead().getForwardSequence().end()) <<

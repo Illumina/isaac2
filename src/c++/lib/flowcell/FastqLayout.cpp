@@ -58,12 +58,23 @@ template<>
 const boost::filesystem::path &Layout::getLaneReadAttribute<Layout::Fastq, FastqFilePathAttributeTag>(
     const unsigned lane, const unsigned read, boost::filesystem::path &result) const
 {
-    ISAAC_ASSERT_MSG(Fastq == format_, FastqFilePathAttributeTag() << " is only allowed for bam flowcells");
+    ISAAC_ASSERT_MSG(Fastq == format_, FastqFilePathAttributeTag() << " is only allowed for fastq flowcells");
     ISAAC_ASSERT_MSG(lane <= laneNumberMax_, "Lane number " << lane << " must not exceed " << laneNumberMax_);
 
     const FastqFlowcellData &data = boost::get<FastqFlowcellData>(formatSpecificData_);
 
     fastq::getFastqFilePath(getBaseCallsPath(), lane, read, data.compressed_, result);
+    return result;
+}
+
+template<>
+const FastqBaseQ0::value_type &Layout::getAttribute<Layout::Fastq, FastqBaseQ0>(
+    FastqBaseQ0::value_type &result) const
+{
+    ISAAC_ASSERT_MSG(Fastq == format_, FastqBaseQ0() << " is only allowed for fastq flowcells");
+
+    const FastqFlowcellData &data = boost::get<FastqFlowcellData>(formatSpecificData_);
+    result = data.fastqQ0_;
     return result;
 }
 

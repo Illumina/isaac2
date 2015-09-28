@@ -86,6 +86,7 @@ AlignOptions::AlignOptions()
     , seedLength(32)
     , allowVariableFastqReadLength(false)
     , allowVariableReadLength(false)
+    , fastqQ0(33)
     , laneNumberMax(8)
     , readNameLength(0)
     , cleanupIntermediary(false)
@@ -158,6 +159,7 @@ AlignOptions::AlignOptions()
     , realignGaps(build::REALIGN_SAMPLE)
     , bamGzipLevel(boost::iostreams::gzip::best_speed)
     , bamPuFormat("%F:%L:%B")
+    , bamProduceMd5(true)
     , expectedBgzfCompressionRatio(1)
     , singleLibrarySamples(true)
     , keepDuplicates(true)
@@ -243,6 +245,8 @@ AlignOptions::AlignOptions()
                 "Gzip level to use for BAM")
         ("bam-header-tag"           , bpo::value<std::vector<std::string> >(&bamHeaderTags)->multitoken(),
                 "Additional bam entries that are copied into the header of each produced bam file. Use '\\t' to represent tab separators.")
+        ("bam-produce-md5"     , bpo::value<bool>(&bamProduceMd5)->default_value(bamProduceMd5),
+                "Controls whether a separate file containing md5 checksum is produced for each output bam.")
         ("bam-pu-format"           , bpo::value<std::string>(&bamPuFormat)->default_value(bamPuFormat),
                 "Template string for bam header RG tag PU field. Oridnary characters are directly copied. The following placeholders are supported:"
                 "\n  - %F             : Flowcell ID"
@@ -395,6 +399,8 @@ AlignOptions::AlignOptions()
                 "3' end quality trimming cutoff. Value above 0 causes low quality bases to be soft-clipped. 0 turns the trimming off.")
         ("variable-read-length"  , bpo::value<bool>(&allowVariableReadLength),
                 "Unless set, iSAAC will fail if the length of the sequence changes between the records of a fastq or a bam file.")
+        ("fastq-q0"  , bpo::value<char>(&fastqQ0)->default_value(fastqQ0),
+                "Character to serve as base quality 0 in fastq input.")
         ("cleanup-intermediary"  , bpo::value<bool>(&cleanupIntermediary)->default_value(cleanupIntermediary),
                 "When set, iSAAC will erase intermediate input files for the stages that have been completed. Notice that "
                 "this will prevent resumption from the stages that have their input files removed. --start-from Last will "
@@ -1255,6 +1261,7 @@ void AlignOptions::postProcess(bpo::variables_map &vm)
                 readNameLength,
                 useBasesMaskList.at(i),
                 allowVariableReadLength,
+                fastqQ0,
                 seedDescriptor, seedLength, referenceMetadataList,
                 firstPassSeeds) :
             flowcell::Layout::Bam == baseCallsFormatList.at(i).first ?

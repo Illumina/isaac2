@@ -50,9 +50,19 @@ static void getFiltersFilePath(
 
 static void getPositionsFilePath(
     const boost::filesystem::path &baseCallsPath,
+    const bool patternedFlowcell,
     const unsigned lane,
     boost::filesystem::path &result)
 {
+    if (patternedFlowcell)
+    {
+        result = baseCallsPath.c_str();
+        result /= "..";
+        result /= "s.locs";
+
+        return;
+    }
+
     ISAAC_ASSERT_MSG(lane <= bclBgzf::LANE_NUMBER_MAX, "Lane number " << lane << " must not exceed " << bclBgzf::LANE_NUMBER_MAX);
 
     // Warning: all this mad code below is to avoid memory allocations during path formatting.
@@ -150,7 +160,9 @@ void Layout::getLaneAttribute<Layout::BclBgzf, PositionsFilePathAttributeTag>(
 {
     ISAAC_ASSERT_MSG(BclBgzf == format_, PositionsFilePathAttributeTag() << " is only allowed for bcl-bgzf flowcells");
 
-    return flowcell::getPositionsFilePath(getBaseCallsPath(), lane, result);
+    const BclFlowcellData &data = boost::get<BclFlowcellData>(formatSpecificData_);
+
+    return flowcell::getPositionsFilePath(getBaseCallsPath(), data.patternedFlowcell_, lane, result);
 }
 
 template<>
@@ -181,6 +193,19 @@ const unsigned& Layout::getAttribute<Layout::BclBgzf, TilesPerLaneMaxAttributeTa
 
     return data.tilesPerLaneMax_;
 }
+
+template<>
+const bool &Layout::getAttribute<Layout::BclBgzf, PatternedFlowcellAttributeTag>(
+    bool &result) const
+{
+    ISAAC_ASSERT_MSG(BclBgzf == format_, PatternedFlowcellAttributeTag() << " is only allowed for bcl-bgzf flowcells");
+
+    const BclFlowcellData &data = boost::get<BclFlowcellData>(formatSpecificData_);
+
+    return data.patternedFlowcell_;
+}
+
+
 
 } // namespace flowcell
 } // namespace isaac

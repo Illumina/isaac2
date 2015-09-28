@@ -56,8 +56,8 @@ public:
 class FastqReader
 {
     const std::size_t uncompressedBufferSize_;
-    static const unsigned FASTQ_QSCORE_OFFSET = 33;
     const bool allowVariableLength_;
+    char q0Base_;
 
     FileBufWithReopen fileBuffer_;
     typedef std::vector<char> BufferType;
@@ -90,9 +90,9 @@ public:
     static const unsigned BGZF_BLOCKS_PER_THREAD = 1024;
 
 
-    FastqReader(const bool allowVariableLength, const unsigned threadsMax, const std::size_t maxPathLength = 0);
+    FastqReader(const bool allowVariableLength, const unsigned threadsMax, const std::size_t maxPathLength);
 
-    void open(const boost::filesystem::path &fastqPath);
+    void open(const boost::filesystem::path &fastqPath, const char q0Base);
 
     void next();
 
@@ -171,11 +171,11 @@ InsertIt FastqReader::extractBcl(const flowcell::ReadMetadata &readMetadata, Ins
         }
         else
         {
-            const unsigned char baseQuality = (*qScoresIt - FASTQ_QSCORE_OFFSET);
+            const unsigned char baseQuality = (*qScoresIt - q0Base_);
             if ((1 << 6) <= baseQuality)
             {
-                BOOST_THROW_EXCEPTION(FastqFormatException((boost::format("Invalid quality %d found in %s at offset %u. Base quality scores [0-63] supported only.") %
-                    unsigned(baseQuality) % getPath() % getOffset(baseCallsIt)).str()));
+                BOOST_THROW_EXCEPTION(FastqFormatException((boost::format("Invalid quality %d found in %s at offset %u. Base quality scores [0-63] supported only. baseq0=%d") %
+                    unsigned(baseQuality) % getPath() % getOffset(baseCallsIt) % q0Base_).str()));
             }
             *it = baseValue | (baseQuality << 2);
         }

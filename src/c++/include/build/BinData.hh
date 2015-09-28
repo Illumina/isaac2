@@ -83,7 +83,7 @@ public:
                 maxReadLength, tileMetadataList, barcodeMetadataList,
                 contigMap, contigLists, forcedDodgyAlignmentScore, flowCellLayoutList, includeTags, pessimisticMapQ, splitGapLength)
     {
-        data_.resize(bin_);
+        data_.reserve(bin_);
 
         std::vector<PackedFragmentBuffer::Index>::reserve(bin_.getTotalElements() * 2);
         seIdx_.reserve(bin_.getSeIdxElements());

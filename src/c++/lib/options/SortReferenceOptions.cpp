@@ -38,7 +38,6 @@ SortReferenceOptions::SortReferenceOptions()
     , maskWidth(6)
     , mask(0)
     , repeatThreshold(1000)
-    , parallelSort("default")
 {
      namedOptions_.add_options()
         ("reference-genome,r",  bpo::value<std::string>(&contigsXml),
@@ -56,8 +55,6 @@ SortReferenceOptions::SortReferenceOptions()
         ("output-file,o",       bpo::value<boost::filesystem::path>(&outFile), "Output file path.")
         ("seed-length,s",       bpo::value<unsigned int>(&seedLength)->default_value(seedLength),
                                 "Length of reference k-mer in bases. Lengths of 16,28,30,32,34,36 and 64 are supported.")
-        ("parallel-sort",       bpo::value<std::string>(&parallelSort)->default_value(parallelSort),
-                                "'default', 'sequential'")
         ;
 }
 
@@ -90,13 +87,6 @@ void SortReferenceOptions::postProcess(bpo::variables_map &vm)
         const format message = format("\n   *** The seed-length must be in range [%d,%d]. Got: %d ***\n") %
                                       reference::FIRST_SUPPORTED_KMER % reference::LAST_SUPPORTED_KMER % seedLength;
         BOOST_THROW_EXCEPTION(InvalidOptionException(message.str()));
-    }
-
-    if ("sequential" == parallelSort)
-    {
-        __gnu_parallel::_Settings s;
-        s.algorithm_strategy = __gnu_parallel::force_sequential;
-        __gnu_parallel::_Settings::set(s);
     }
 }
 

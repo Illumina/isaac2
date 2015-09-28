@@ -107,6 +107,7 @@ void align(const isaac::options::AlignOptions &options)
         options.realignGaps,
         options.bamGzipLevel,
         options.bamPuFormat,
+        options.bamProduceMd5,
         options.bamHeaderTags,
         options.expectedBgzfCompressionRatio,
         options.singleLibrarySamples,

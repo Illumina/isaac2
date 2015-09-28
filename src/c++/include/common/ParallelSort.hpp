@@ -22,7 +22,6 @@
 #define iSAAC_COMMON_PARALLEL_SORT_HPP
 
 #include <vector>
-#include <parallel/algorithm>
 
 #include "common/Debug.hh"
 #include "common/Threads.hpp"
@@ -179,10 +178,6 @@ void parallelSort (Iterator begin, Iterator end, const Compare &comp)
     parallelSort(begin, end, comp, threads, threads.size());
 }
 
-/**
- ** \brief Calling to the gnu parallel sort implementation. NOTE!!!
- **        Seems to require as much extra dynamic memory as there is data to sort in gcc 4.6.
- **/
 template <class T, class Compare>
 void parallelSort (std::vector<T> &v, const Compare &comp)
 {

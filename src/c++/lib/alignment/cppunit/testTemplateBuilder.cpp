@@ -66,7 +66,7 @@ isaac::alignment::FragmentMetadata getFragmentMetadata(
 
 TestTemplateBuilder::TestTemplateBuilder()
     : readMetadataList(getReadMetadataList())
-    , flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, false, 8, 0, std::vector<unsigned>(),
+    , flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, isaac::flowcell::FastqFlowcellData(false, '!'), 8, 0, std::vector<unsigned>(),
                                           readMetadataList, isaac::alignment::SeedMetadataList(), "blah"))
     , contigList(getContigList())
     , contigAnnotations(contigList.size())

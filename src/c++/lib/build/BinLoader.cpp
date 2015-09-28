@@ -85,6 +85,8 @@ void BinLoader::loadUnalignedData(BinData &binData)
             BOOST_THROW_EXCEPTION(common::IoException(
                 errno, (boost::format("Failed to seek to position %d in %s") % binData.bin_.getDataOffset() % binData.bin_.getPathString()).str()));
         }
+        // TODO: this takes time to fill it up with 0... 2 seconds per bin easily
+        binData.data_.resize(binData.bin_);
         if (!isData.read(&binData.data_.front(), binData.bin_.getDataSize())) {
             BOOST_THROW_EXCEPTION(common::IoException(
                 errno, (boost::format("Failed to read %d bytes from %s") % binData.bin_.getDataSize() % binData.bin_.getPathString()).str()));
@@ -125,6 +127,10 @@ const io::FragmentAccessor &BinLoader::loadFragment(BinData &binData, std::istre
     offset = binData.dataDistribution_.addBytes(
         binData.bin_.hasPosition(header.fStrandPosition_) ? header.fStrandPosition_ - binData.bin_.getBinStart() : 0, fragmentLength);
 //            ISAAC_THREAD_CERR << "offset:" << offset << " fragment: " << header << std::endl;
+
+    // TODO: this takes time to fill it up with 0... 2 seconds per bin easily
+    binData.data_.resize(std::max(binData.data_.size(), offset + fragmentLength));
+
     io::FragmentAccessor &fragment = binData.data_.getFragment(offset);
     io::FragmentHeader &headerRef = fragment;
     headerRef = header;

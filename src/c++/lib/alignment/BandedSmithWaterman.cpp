@@ -115,7 +115,7 @@ unsigned BandedSmithWaterman::trimTailIndels(Cigar& cigar, const size_t beginOff
         if(cigar.size() == beginOffset)
         {
             // this was a really bad s-w alignment. Something like this: 15D7I7D15I15D15I15D15I15D15I15D
-            cigar.push_back(Cigar::encode(extend, Cigar::ALIGN));
+            cigar.addOperation(extend, Cigar::ALIGN);
             ISAAC_ASSERT_MSG(!extend, "Unexpectedly long CIGAR operation");
         }
         else
@@ -356,7 +356,9 @@ unsigned BandedSmithWaterman::align(
         D = _mm_slli_si128(D, 1);
         D = _mm_insert_epi8(D, *(databaseBegin + queryOffset + WIDEST_GAP_SIZE - 1), 0);
         // compare query and database. 0xff if different (that also the sign bits)
-        const __m128i B = ~_mm_cmpeq_epi8(Q, D);
+        const __m128i ONE = _mm_set1_epi8(0xFF);
+        const __m128i B = _mm_andnot_si128(_mm_cmpeq_epi8(Q, D), ONE);
+
 #if 0
         //std::cerr << std::endl << database << std::endl << query << std::endl;;
         std::cerr << (boost::format("%2d  D:") % (queryOffset+1)).str();

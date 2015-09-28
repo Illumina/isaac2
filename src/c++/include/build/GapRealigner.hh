@@ -64,7 +64,6 @@ private:
     const bool clipSemialigned_;
 
     const flowcell::BarcodeMetadataList &barcodeMetadataList_;
-    const std::vector<alignment::TemplateLengthStatistics> &barcodeTemplateLengthStatistics_;
     const std::vector<std::vector<reference::Contig> > &contigList_;
 
     gapRealigner::Gaps currentAttemptGaps_;
@@ -82,7 +81,6 @@ public:
         const unsigned gapExtendCost,
         const bool clipSemialigned,
         const flowcell::BarcodeMetadataList &barcodeMetadataList,
-        const std::vector<alignment::TemplateLengthStatistics> &barcodeTemplateLengthStatistics,
         const std::vector<std::vector<reference::Contig> > &contigList):
             realignGapsVigorously_(realignGapsVigorously),
             realignDodgyFragments_(realignDodgyFragments),
@@ -93,7 +91,6 @@ public:
             gapExtendCost_(gapExtendCost),
             clipSemialigned_(clipSemialigned),
             barcodeMetadataList_(barcodeMetadataList),
-            barcodeTemplateLengthStatistics_(barcodeTemplateLengthStatistics),
             contigList_(contigList)
     {
         reserve();
@@ -114,6 +111,13 @@ public:
         io::FragmentAccessor &fragment,
         PackedFragmentBuffer &dataBuffer,
         alignment::Cigar &realignedCigars);
+
+    // This one finds mate in the dataBuffer and updates it. Make sure no other thread is workin on the same pair at the same time
+    static void updatePairDetails(
+        const std::vector<alignment::TemplateLengthStatistics> &barcodeTemplateLengthStatistics,
+        const PackedFragmentBuffer::Index &index,
+        io::FragmentAccessor &fragment,
+        PackedFragmentBuffer &dataBuffer);
 
 private:
 
@@ -225,11 +229,6 @@ private:
         std::size_t bufferSizeBeforeRealignment,
         PackedFragmentBuffer::Index &index,
         alignment::Cigar &realignedCigars);
-
-    void updatePairDetails(
-        const PackedFragmentBuffer::Index &index,
-        io::FragmentAccessor &fragment,
-        PackedFragmentBuffer &dataBuffer);
 
     GapChoice findBetterGapsChoice(
         const gapRealigner::GapsRange& gaps,

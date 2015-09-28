@@ -34,7 +34,7 @@ CPPUNIT_TEST_SUITE_NAMED_REGISTRATION( TestOverlappingEndsClipper, registryName(
 
 TestOverlappingEndsClipper::TestOverlappingEndsClipper() : cluster_(1234)
 {
-
+    cigarBuffer_.reserve(1024);
 }
 
 void TestOverlappingEndsClipper::setUp()

@@ -125,7 +125,7 @@ class BasicThreadVector : boost::noncopyable, boost::ptr_vector<boost::thread>
 {
     struct Executor
     {
-        virtual void execute(size_type threadNum) = 0;
+        virtual void execute(const size_type threadNum, const size_type threadsTotal) = 0;
         virtual ~Executor() {}
     } *executor_;
     boost::mutex mutex_;
@@ -205,9 +205,9 @@ public:
         {
             F &func_;
             FuncExecutor(F &func) : func_(func){}
-            virtual void execute(size_type threadNum)
+            virtual void execute(const size_type threadNum, const size_type threadsTotal)
             {
-                func_(threadNum);
+                func_(threadNum, threadsTotal);
             }
         }executor(func);
 
@@ -233,7 +233,7 @@ private:
         if (1 == threads)
         {
             // Special case for one to simplify debugging. Just do it on the calling thread.
-            executor_->execute(0);
+            executor_->execute(0, 1);
         }
         else
         {
@@ -265,7 +265,7 @@ private:
     void unsafeExecute(size_type threadNum, boost::unique_lock<boost::mutex> &lock)
     {
         unlock_guard<boost::unique_lock<boost::mutex> > unlock(lock);
-        executor_->execute(threadNum);
+        executor_->execute(threadNum, lowestBlockedThreadNumber_);
     }
 
     /**

@@ -1,3 +1,41 @@
+iSAAC-02.15.09.28
+* SAAC-858 configurable fastq Q0 base
+
+iSAAC-02.15.09.25
+* SAAC-855 Support s.locs for bcl-bgzf flowcells
+* SAAC-856 Resuming bcl bgzf analysis crashes
+
+iSAAC-02.15.09.22
+* SAAC-852 More efficient threading in bam generation
+* SAAC-850 large blocks of memory initialized under exclusive lock in bam generation
+
+iSAAC-02.15.09.07
+* SAAC-843 control md5 production from command line
+* SAAC-836 CPU oversubscription in gap realignment slows down bam generation
+* SAAC-842 prevent uncontrolled CIGAR buffer reallocations
+
+iSAAC-02.15.09.04
+* SAAC-833 1D1I in CIGAR after realignment
+
+iSAAC-02.15.09.03
+* SAAC-831 0M in CIGAR after gap realignment
+
+iSAAC-02.15.08.26
+* SAAC-835 parallelize bcl transpose
+
+iSAAC-02.15.08.25
+* SAAC-833 1D1I in CIGAR after realignment
+* SAAC-824 Intel compiler compatibility
+
+iSAAC-02.15.08.24
+* SAAC-830 --pre-allocate-bins yes results in bin files full of 0x00
+
+iSAAC-02.15.08.20
+* SAAC-826 low --input-concurrent-load potentially causes bcl data read improperly
+
+iSAAC-02.15.07.22
+* SAAC-817 Assertion failure bamTemplate.getAlignmentScore() < 4 || 1 == bestPair.removeRepeatDuplicates())
+
 iSAAC-02.15.07.16
 * SAAC-815 fallocate is not available on CentOS 5
 

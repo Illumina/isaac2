@@ -30,11 +30,11 @@ please see [src/markdown/manual.md](src/markdown/manual.md)
 
 This step can take long time on bigger genomes. Normally it is done once per reference and the output is reused in further data analyses.
 
-    $ <isaac>/bin/isaac-sort-reference -g <isaac>/data/share/*/data/examples/PhiX/iGenomes/PhiX/NCBI/1993-04-28/Sequence/Chromosomes/phix.fa -o ./PhiX
+    $ <isaac>/bin/isaac-sort-reference -g <isaac>/share/*/data/examples/PhiX/iGenomes/PhiX/NCBI/1993-04-28/Sequence/Chromosomes/phix.fa -o ./PhiX
 
 ##Process fastq data
 
 Analyse a pair of fastq files and produce bam output.
 
-    $ <isaac>/bin/isaac-align -r ./PhiX/sorted-reference.xml -b <isaac>/data/share/*/data/examples/PhiX/Fastq -f fastq --use-bases-mask y150,y150 --variable-read-length yes -m10
+    $ <isaac>/bin/isaac-align -r ./PhiX/sorted-reference.xml -b <isaac>/share/*/data/examples/PhiX/Fastq -f fastq --use-bases-mask y150,y150 --variable-read-length yes -m10
 

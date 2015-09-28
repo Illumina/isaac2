@@ -56,14 +56,7 @@ public:
     void get(unsigned clusterIndex, InsertIteratorT insertIterator) const
     {
         ISAAC_ASSERT_MSG(clusterIndex < clusterCount_, "Requested cluster number is not in the data");
-        const char *clusterCycleEnd = getBclBufferStart(cycleNumbers_) + getClusterOffset(clusterIndex);
-        const char *clusterCyclePointer = getBclBufferStart(0) + getClusterOffset(clusterIndex);
-        const unsigned increment = getTileSize(1);
-        while(clusterCycleEnd != clusterCyclePointer)
-        {
-            *insertIterator++ = *clusterCyclePointer;
-            clusterCyclePointer += increment;
-        }
+        extractCluster(clusterIndex, getTileSize(1), insertIterator);
     }
 
     template <typename InsertIteratorT>
@@ -72,13 +65,7 @@ public:
         const unsigned increment = getTileSize(1);
         for (unsigned clusterIndex = 0; clusterCount_ > clusterIndex; ++ clusterIndex)
         {
-            const char *clusterCycleEnd = getBclBufferStart(cycleNumbers_) + getClusterOffset(clusterIndex);
-            const char *clusterCyclePointer = getBclBufferStart(0) + getClusterOffset(clusterIndex);
-            while(clusterCycleEnd != clusterCyclePointer)
-            {
-                *insertIterator++ = *clusterCyclePointer;
-                clusterCyclePointer += increment;
-            }
+            insertIterator = extractCluster(clusterIndex, increment, insertIterator);
         }
     }
 
@@ -113,6 +100,19 @@ public:
     unsigned getCyclesCount() const {return cycleNumbers_;}
 
 protected:
+    template <typename InsertIteratorT>
+    InsertIteratorT extractCluster(unsigned clusterIndex, const unsigned increment, InsertIteratorT insertIterator) const
+    {
+        const char *clusterCycleEnd = getBclBufferStart(cycleNumbers_) + getClusterOffset(clusterIndex);
+        const char *clusterCyclePointer = getBclBufferStart(0) + getClusterOffset(clusterIndex);
+        while(clusterCycleEnd != clusterCyclePointer)
+        {
+            *insertIterator++ = *clusterCyclePointer;
+            clusterCyclePointer += increment;
+        }
+        return insertIterator;
+    }
+
     unsigned long getUnpaddedBclSize() const
     {
         return sizeof(boost::uint32_t) + clusterCount_;
@@ -155,6 +155,11 @@ protected:
         tileData_.resize(getTileSize(cycleNumbers_));
     }
 
+    unsigned getGeometryClusterCount() const
+    {
+        return clusterCount_;
+    }
+
     /**
      * \brief constructor for child classes that want to perform loading themselves
      */
@@ -195,6 +200,7 @@ class ParallelBclMapper : BclMapper
     const unsigned maxInputLoaders_;
     std::vector<ReaderT> &threadReaders_;
     std::vector<unsigned> cycleNumbers_;
+    const std::size_t transposeThreadCount_;
 public:
     using BclMapper::transpose;
     using BclMapper::getCyclesCount;
@@ -209,7 +215,8 @@ public:
         threads_(threads),
         maxInputLoaders_(maxInputLoaders),
         threadReaders_(threadReaders),
-        cycleNumbers_(maxCycles)
+        cycleNumbers_(maxCycles),
+        transposeThreadCount_(std::min<std::size_t>(threads_.size(), boost::thread::hardware_concurrency()))
     {
         std::for_each(threadReaders_.begin(), threadReaders_.end(),
                       boost::bind(&ReaderT::reserveBuffers, _1, reservePathLength, getTileSize(1)));
@@ -236,6 +243,34 @@ public:
             cycleNumbers_.end()), std::min<unsigned>(cycleNumbers_.size(), maxInputLoaders_));
     }
 
+    template <typename RandomAccessIteratorT>
+    void transpose(RandomAccessIteratorT outputIterator) const
+    {
+        threads_.execute(
+            [this, outputIterator](const unsigned threadNumber, const unsigned threadsTotal)
+            {
+                const unsigned clusterBegin = (getGeometryClusterCount() / threadsTotal) * threadNumber;
+                const unsigned clusterEnd = std::min(getGeometryClusterCount(), (getGeometryClusterCount() / threadsTotal) * (threadNumber + 1));
+                // if there are less clusters than threads, let only thread 0 do the job
+                if (clusterBegin || !threadNumber)
+                {
+                    const unsigned increment = getTileSize(1);
+                    RandomAccessIteratorT oi = outputIterator + clusterBegin * getCyclesCount();
+                    for (unsigned clusterIndex = clusterBegin; clusterEnd > clusterIndex; ++clusterIndex)
+                    {
+                        oi = extractCluster(clusterIndex, increment, oi);
+                    }
+                }
+            },
+            transposeThreadCount_);
+
+//        const unsigned increment = getTileSize(1);
+//        for (unsigned clusterIndex = 0; clusterCount_ > clusterIndex; ++ clusterIndex)
+//        {
+//            extractCluster(clusterIndex, increment, insertIterator);
+//        }
+    }
+
 private:
     void threadLoadBcls(
         const unsigned threadNumber,
@@ -248,7 +283,7 @@ private:
         for(unsigned thistThreadCycleOffset = threadNumber;
             std::distance(threadCyclesBegin, threadCyclesEnd) > thistThreadCycleOffset;
             // jump to the next cycle to be loaded by this thread
-            thistThreadCycleOffset += threads_.size())
+            thistThreadCycleOffset += maxInputLoaders_)
         {
             const unsigned cycle = *(threadCyclesBegin + thistThreadCycleOffset);
             const unsigned readClusters = threadReaders_[threadNumber].readTileCycle(

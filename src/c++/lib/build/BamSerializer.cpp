@@ -61,7 +61,7 @@ void BamSerializer::splitIfNeeded(
             }
 
             secondPart.pos_ = current.referencePos_;
-            std::copy(current.cigarIt_, index.cigarEnd_, std::back_inserter(splitCigars));
+            splitCigars.addOperations(current.cigarIt_, index.cigarEnd_);
             secondPart.cigarBegin_ = &splitCigars.front() + before;
             secondPart.cigarEnd_ = &splitCigars.back() + 1;
             secondPart.reverse_ = current.reverse_;
@@ -70,7 +70,7 @@ void BamSerializer::splitIfNeeded(
             //patch the old one
             const PackedFragmentBuffer::Index::CigarIterator oldBegin = index.cigarBegin_;
             index.cigarBegin_ = &splitCigars.back() + 1;
-            std::copy(oldBegin, last.cigarIt_, std::back_inserter(splitCigars));
+            splitCigars.addOperations(oldBegin, last.cigarIt_);
 
             const unsigned sequenceLeftover = data.getFragment(index).readLength_ - last.sequenceOffset_;
             if (sequenceLeftover)
@@ -98,15 +98,12 @@ void BamSerializer::prepareForBam(
     std::vector<PackedFragmentBuffer::Index> &dataIndex,
     alignment::Cigar &splitCigars)
 {
-    ISAAC_THREAD_CERR << "Sorting offsets for bam" << std::endl;
     BOOST_FOREACH(PackedFragmentBuffer::Index &index, dataIndex)
     {
         splitIfNeeded(data, index, dataIndex, splitCigars);
     }
 
-    const clock_t startSortOffsets = clock();
     std::sort(dataIndex.begin(), dataIndex.end(), boost::bind(&PackedFragmentBuffer::orderForBam, boost::ref(data), _1, _2));
-    ISAAC_THREAD_CERR << "Sorting offsets for bam" << " done in " << (clock() - startSortOffsets) / 1000 << "ms" << std::endl;
 }
 
 } // namespace build

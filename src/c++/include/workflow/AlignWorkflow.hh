@@ -138,6 +138,7 @@ public:
         const build::GapRealignerMode realignGaps,
         const int bamGzipLevel,
         const std::string &bamPuFormat,
+        const bool bamProduceMd5,
         const std::vector<std::string> &bamHeaderTags,
         const double expectedBgzfCompressionRatio,
         const bool singleLibrarySamples,
@@ -261,6 +262,7 @@ private:
     const build::GapRealignerMode realignGaps_;
     const int bamGzipLevel_;
     const std::string &bamPuFormat_;
+    const bool bamProduceMd5_;
     const std::vector<std::string> &bamHeaderTags_;
     const double expectedBgzfCompressionRatio_;
     const bool singleLibrarySamples_;

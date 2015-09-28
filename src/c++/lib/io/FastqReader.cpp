@@ -35,6 +35,7 @@ FastqReader::FastqReader(const bool allowVariableLength, const unsigned threadsM
     // space for parallel decompression to be effective with bgzf-compressed fastq.
     uncompressedBufferSize_(std::size_t(bgzf::BgzfReader::UNCOMPRESSED_BGZF_BLOCK_SIZE) * threadsMax * BGZF_BLOCKS_PER_THREAD),
     allowVariableLength_(allowVariableLength),
+    q0Base_(0),
     fileBuffer_(std::ios_base::in),
     gzReader_(),
     // give the threads a chance to rebalance if some of the blocks take longer to uncompress
@@ -62,13 +63,16 @@ void FastqReader::resetBuffer()
     endIt_ = buffer_.end();
 }
 
-void FastqReader::open(const boost::filesystem::path &fastqPath)
+void FastqReader::open(
+    const boost::filesystem::path &fastqPath,
+    const char q0Base)
 {
     if (fastqPath.string() != fastqPath_)
     {
         resetBuffer();
         // ensure actual copying, prevent path buffer sharing
         fastqPath_ = fastqPath.c_str();
+        q0Base_ = q0Base;
         compressed_ = common::isDotGzPath(fastqPath_);
         fileBuffer_.reopen(fastqPath_.c_str(), FileBufWithReopen::SequentialOnce);
         buffer_.resize(uncompressedBufferSize_);
@@ -88,7 +92,7 @@ void FastqReader::open(const boost::filesystem::path &fastqPath)
                 fastqPath_).str()));
         }
         ISAAC_THREAD_CERR << "Opened " << (bgzfCompressed_ ? "bgzf" : compressed_ ? "gz" : "") <<
-            " fastq stream on " << fastqPath_ << std::endl;
+            " fastq stream on " << fastqPath_ << " and base Q0 " << q0Base_ << std::endl;
     }
     else
     {

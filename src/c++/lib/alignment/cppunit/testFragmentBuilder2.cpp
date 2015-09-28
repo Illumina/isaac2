@@ -68,10 +68,10 @@ static const isaac::alignment::matchSelector::SequencingAdapterList noAdapters;
 TestFragmentBuilder2::TestFragmentBuilder2() :
     readMetadataList(getReadMetadataList()),
     seedMetadataList(getSeedMetadataList()),
-    flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, false, 8, 0, std::vector<unsigned>(),
+    flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, isaac::flowcell::FastqFlowcellData(false, '!'), 8, 0, std::vector<unsigned>(),
                                          readMetadataList, seedMetadataList, "blah"))
 {
-
+    cigarBuffer_.reserve(1024);
 }
 
 void TestFragmentBuilder2::setUp()

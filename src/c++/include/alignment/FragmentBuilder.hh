@@ -69,7 +69,7 @@ public:
         const Cluster &cluster,
         bool withGaps);
     const std::vector<std::vector<FragmentMetadata> > &getFragments() const {return fragments_;}
-    const std::vector<unsigned> &getCigarBuffer() const {return cigarBuffer_;}
+    const Cigar &getCigarBuffer() const {return cigarBuffer_;}
 
     struct SequencingAdapterRange
     {

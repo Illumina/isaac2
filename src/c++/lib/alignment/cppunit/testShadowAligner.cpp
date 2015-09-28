@@ -32,7 +32,7 @@ CPPUNIT_TEST_SUITE_NAMED_REGISTRATION( TestShadowAligner, registryName("ShadowAl
 
 TestShadowAligner::TestShadowAligner()
     : readMetadataList(getReadMetadataList(81, 92))
-    , flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, false, 8, 0, std::vector<unsigned>(),
+    , flowcells(1, isaac::flowcell::Layout("", isaac::flowcell::Layout::Fastq, isaac::flowcell::FastqFlowcellData(false, '!'), 8, 0, std::vector<unsigned>(),
                                            readMetadataList, isaac::alignment::SeedMetadataList(), "blah"))
     , contigList(getContigList(190, 300, 422))
     , contigAnnotations()

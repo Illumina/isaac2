@@ -64,7 +64,7 @@ void TestBandedSmithWaterman::testCustom()
     {
         const std::vector<char> query =    vectorFromString("        TTTTTTTTTTTTTTTCCCC            AATAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTAT", true);
         const std::vector<char> database = vectorFromString("     GGGGGCAATAACCTAAGATAAAAAAAACATTGTAAACAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTAT  ", true);
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         isaac::alignment::BandedSmithWaterman bsw(0, -4, 6, 1, 300);
         // earlier versions would introduce a soft-clip at the beginning. This has been corrected with SAAC-770
         // CPPUNIT_ASSERT_EQUAL(29U, bsw.align(query, database.begin(), database.end(), cigar));
@@ -76,7 +76,7 @@ void TestBandedSmithWaterman::testCustom()
     {
         const std::vector<char> query =    vectorFromString("        GGCAATAACCTAAGAT               AATAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTAT", true);
         const std::vector<char> database = vectorFromString("        GGCAATAACCTAAGATAAAAAAAACATTGTAAACAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTAT  ", true);
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         isaac::alignment::BandedSmithWaterman bsw(0, -4, 6, 1, 300);
         bsw.align(query, database.begin(), database.end(), cigar);
         CPPUNIT_ASSERT_EQUAL(std::string("16M15D68M"), isaac::alignment::Cigar::toString(cigar.begin(), cigar.end()));
@@ -85,7 +85,7 @@ void TestBandedSmithWaterman::testCustom()
     {
         const std::vector<char> query = vectorFromString(           "GGCAATAACCTAAGATAAAAAAAAACATTGTAAATAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTAT");
         const std::vector<char> database = vectorFromString("CTTTAATCAGGCAATAACCTAAGATAAAAAAAACATTGTAAACAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTATCCTGGGT");
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         bsw.align(query, database.begin(), database.end(), cigar);
         CPPUNIT_ASSERT_EQUAL(std::string("16M1I83M"), isaac::alignment::Cigar::toString(cigar.begin(), cigar.end()));
     }
@@ -93,7 +93,7 @@ void TestBandedSmithWaterman::testCustom()
     {
         const std::vector<char> query =    vectorFromString(       "AGGCAATAACCTAAGATAAAAAAAACATTGTAAACAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTA");
         const std::vector<char> database = vectorFromString("NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTATCCTGGGT");
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         isaac::alignment::BandedSmithWaterman bsw(0, -4, 6, 1, 300);
         // earlier versions would introduce a soft-clip at the beginning. This has been corrected with SAAC-770
         //CPPUNIT_ASSERT_EQUAL(std::string("50S49M"), isaac::alignment::Cigar::toString(cigar.begin(), cigar.end()));
@@ -104,7 +104,7 @@ void TestBandedSmithWaterman::testCustom()
     {
         const std::vector<char> query =    vectorFromString(       "NNNNNNNNNNNNNNNNNNNNAAAAACATTGTAAACAAAAGTAAATGCTGTAATNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
         const std::vector<char> database = vectorFromString("TTTAATCAGGCAATAACCTAAGATAAAAAAAACATTGTAAACAAAAGTAAATGCTGTAATATTTAAGGTAAGTAAGCCAACAGCTGAGGAAAAGGGAAATCCATTATCCTGGGT");
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         isaac::alignment::BandedSmithWaterman bsw(1, -4, 6, 1, 300);
         // earlier versions would introduce a soft-clip at the beginning. This has been corrected with SAAC-770
         // CPPUNIT_ASSERT_EQUAL(27U, bsw.align(query, database.begin(), database.end(), cigar));
@@ -117,7 +117,7 @@ void TestBandedSmithWaterman::testCustom()
         const std::vector<char> query =    vectorFromString(       "TTCGTTGGAAACGGGATTTCTTCATATTCTGCTAGACAGAAGAATTCTCAGTAACTTCCTTGTGTTGTGTGTATTCAACTCACAGAGTTGAACGATCCTT");
         const std::vector<char> database = vectorFromString("TTGAGGCCTTCGTTGGAAACGGGATTTCTTCATATTCTGCTAGACAGAAGAATTCNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
 
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         isaac::alignment::BandedSmithWaterman bsw(1, -4, 6, 1, 300);
         CPPUNIT_ASSERT_EQUAL(8U, bsw.align(query, database.begin(), database.end(), cigar));
         // earlier versions would introduce a soft-clip at the beginning. This has been corrected with SAAC-770
@@ -132,7 +132,7 @@ void TestBandedSmithWaterman::testUngapped()
     const std::vector<char> database = subv(genome, 100, 115);
     std::vector<char> query = subv(database, 0, 100);
     CPPUNIT_ASSERT_EQUAL(115UL, database.size());
-    isaac::alignment::Cigar cigar;
+    isaac::alignment::Cigar cigar; cigar.reserve(1024);
     bsw.align(query, database.begin(), database.end(), cigar);
     CPPUNIT_ASSERT_EQUAL(1UL, cigar.size());
     CPPUNIT_ASSERT_EQUAL(1600U, cigar[0]);
@@ -171,7 +171,7 @@ void TestBandedSmithWaterman::testSingleDeletion()
         const std::vector<char> drDS = subv(genome, 100 + dl + left + right, drD);
         const std::vector<char> databaseD = dlS + leftS + deletionS1 + rightS + drDS;
         const std::vector<char> queryD = leftS + rightS;
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         bsw.align(queryD, databaseD.begin(), databaseD.end(), cigar);
         CPPUNIT_ASSERT_EQUAL(3UL, cigar.size());
         CPPUNIT_ASSERT_EQUAL(( left << 4) | 0U, cigar[0]);
@@ -194,7 +194,7 @@ void TestBandedSmithWaterman::testSingleInsertion()
         unsigned dl = 9;
         std::vector<char> query = subv(database, dl, left) + std::string(insertLength, 'T') + subv(database, left + dl, right);
         //CPPUNIT_ASSERT_EQUAL(115UL, database.size());
-        isaac::alignment::Cigar cigar;
+        isaac::alignment::Cigar cigar; cigar.reserve(1024);
         bsw.align(query, database.begin(), database.end(), cigar);
 //        CPPUNIT_ASSERT_EQUAL_MESSAGE(isaac::alignment::Cigar::toString(cigar.begin(), cigar.end()) +
 //                             " db:" + string(database.begin(), database.end()) +
@@ -232,7 +232,7 @@ void TestBandedSmithWaterman::testMultipleIndels()
     const std::vector<char> databaseID = vectorFromString(dlS + leftS + centerS + deletionS2 + rightS + drIDS);
     const std::vector<char> queryID = vectorFromString(leftS + insertS1 + centerS + rightS);
     //CPPUNIT_ASSERT_EQUAL(115UL, database.size());
-    isaac::alignment::Cigar cigar;
+    isaac::alignment::Cigar cigar; cigar.reserve(1024);
     bsw.align(queryID, databaseID.begin(), databaseID.end(), cigar);
     CPPUNIT_ASSERT_EQUAL(5UL, cigar.size());
     CPPUNIT_ASSERT_EQUAL(( left << 4) | 0U, cigar[0]);

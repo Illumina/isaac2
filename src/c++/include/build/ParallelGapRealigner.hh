@@ -30,6 +30,14 @@ namespace isaac
 namespace build
 {
 
+inline std::size_t getTotalGapsCount(const std::vector<gapRealigner::RealignerGaps> &allGaps)
+{
+    return std::accumulate(allGaps.begin(), allGaps.end(), 0,
+                           boost::bind(std::plus<std::size_t>(), _1,
+                                       boost::bind(&gapRealigner::RealignerGaps::getGapsCount, _2)));
+}
+
+
 class ParallelGapRealigner
 {
 public:
@@ -42,27 +50,29 @@ public:
         const flowcell::BarcodeMetadataList &barcodeMetadataList,
         const std::vector<alignment::TemplateLengthStatistics> &barcodeTemplateLengthStatistics,
         const isaac::reference::ContigLists &contigLists) :
-            threads_(threads),
-            threadCigars_(threads_.size()),
+            barcodeTemplateLengthStatistics_(barcodeTemplateLengthStatistics),
+            threadCigars_(threads),
             threadGapRealigners_(
-                threads_.size(),
+                threads,
                 GapRealigner(realignGapsVigorously, realignDodgyFragments, realignedGapsPerFragment, 3, 4, 0,
-                             clipSemialigned, barcodeMetadataList, barcodeTemplateLengthStatistics, contigLists))
+                             clipSemialigned, barcodeMetadataList, contigLists))
     {
         std::for_each(threadCigars_.begin(), threadCigars_.end(), boost::bind(&alignment::Cigar::reserve, _1, THREAD_CIGAR_MAX));
         std::for_each(threadGapRealigners_.begin(), threadGapRealigners_.end(), boost::bind(&GapRealigner::reserve, _1));
     }
 
-    void realignGaps(BinData &binData);
+    void threadRealignGaps(boost::unique_lock<boost::mutex> &lock, BinData &binData, BinData::iterator &nextUnprocessed, unsigned long threadNumber);
 private:
     static const std::size_t THREAD_CIGAR_MAX =1024;
-    common::ThreadVector threads_;
+    const std::vector<alignment::TemplateLengthStatistics> &barcodeTemplateLengthStatistics_;
     std::vector<alignment::Cigar> threadCigars_;
     std::vector<GapRealigner> threadGapRealigners_;
     boost::mutex cigarBufferMutex_;
 
-    void threadRealignGaps(BinData &binData, unsigned long threadNumber);
-
+    void realign(
+        isaac::build::GapRealigner& realigner,
+        io::FragmentAccessor& fragment, PackedFragmentBuffer::Index &index,
+        BinData& binData, isaac::alignment::Cigar& cigars);
 };
 
 

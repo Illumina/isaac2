@@ -48,7 +48,7 @@ static isaac::flowcell::ReadMetadataList getReadMetadataList(const unsigned read
 
 TestSplitReadAligner::TestSplitReadAligner()
 {
-
+    cigarBuffer_.reserve(1024);
 }
 
 void TestSplitReadAligner::setUp()

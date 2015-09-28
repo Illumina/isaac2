@@ -157,7 +157,7 @@ void OverlappingEndsClipper::clip(
         right.cigarOffset = cigarBuffer_.size();
         cigarBuffer_.addOperation(rightStartOffset + keepLeft, Cigar::SOFT_CLIP);
         cigarBuffer_.addOperation(rightFirstCigarAlignOp.first - keepLeft, Cigar::ALIGN);
-        cigarBuffer_.insert(cigarBuffer_.end(), rightFirstCigarAlignOpIt + 1, rightCigarEndIt);
+        cigarBuffer_.addOperations(rightFirstCigarAlignOpIt + 1, rightCigarEndIt);
         right.incrementClipLeft(keepLeft);
 
         right.observedLength -= keepLeft;
@@ -178,7 +178,7 @@ void OverlappingEndsClipper::clip(
 
         const Cigar::const_iterator leftCigarBeginIt = left.cigarBegin();
         left.cigarOffset = cigarBuffer_.size();
-        cigarBuffer_.insert(cigarBuffer_.end(), leftCigarBeginIt, leftLastCigarAlignOpIt);
+        cigarBuffer_.addOperations(leftCigarBeginIt, leftLastCigarAlignOpIt);
         cigarBuffer_.addOperation(leftLastCigarAlignOp.first - keepRight, Cigar::ALIGN);
         cigarBuffer_.addOperation(leftEndSoftClip + keepRight, Cigar::SOFT_CLIP);
         left.incrementClipRight(keepRight);

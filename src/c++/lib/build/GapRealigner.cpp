@@ -129,6 +129,7 @@ const GapRealigner::RealignmentBounds GapRealigner::extractRealignmentBounds(
  * \param endPosShift   change in the fragment end alignment position. negative for insertions, positive for deletions
  */
 void GapRealigner::updatePairDetails(
+    const std::vector<alignment::TemplateLengthStatistics> &barcodeTemplateLengthStatistics,
     const PackedFragmentBuffer::Index &index,
     io::FragmentAccessor &fragment,
     PackedFragmentBuffer &dataBuffer)
@@ -170,7 +171,7 @@ void GapRealigner::updatePairDetails(
     mate.mateFStrandPosition_ = fragment.fStrandPosition_;
     mate.flags_.properPair_ = fragment.flags_.properPair_ =
         alignment::TemplateLengthStatistics::Nominal ==
-            barcodeTemplateLengthStatistics_.at(fragment.barcode_).checkModel(fragment, mate);
+            barcodeTemplateLengthStatistics.at(fragment.barcode_).checkModel(fragment, mate);
 }
 
 /**
@@ -228,6 +229,7 @@ bool GapRealigner::compactCigar(
             needCompacting = true;
             if (binEndPos <= newPos + decoded.first)
             {
+                ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, " Cannot compact CIGAR as read will move to next bins " << fragment << index);
                 return false;
             }
             newPos += decoded.first;
@@ -281,7 +283,6 @@ bool GapRealigner::compactCigar(
 
         if (softClipStart)
         {
-            ISAAC_ASSERT_MSG(realignedCigars.capacity() > realignedCigars.size(), "Realigned CIGAR buffer is out of capacity");
             realignedCigars.addOperation(softClipStart, Cigar::SOFT_CLIP);
         }
         ISAAC_ASSERT_MSG(std::distance(cigarIterator, cigarBackwardsIterator + 1) < 200 &&
@@ -294,11 +295,9 @@ bool GapRealigner::compactCigar(
         ISAAC_ASSERT_MSG(alignment::Cigar::getReadLength(cigarIterator, cigarBackwardsIterator + 1) + softClipStart + softClipEnd == fragment.readLength_,
                          "Broken CIGAR in the middle of compacting: " << alignment::Cigar::toString(cigarIterator, cigarBackwardsIterator + 1) <<
                          " " << index << " " << fragment);
-        ISAAC_ASSERT_MSG(realignedCigars.capacity() >= (realignedCigars.size() + std::distance(cigarIterator, cigarBackwardsIterator + 1)), "Realigned CIGAR buffer is out of capacity");
-        realignedCigars.insert(realignedCigars.end(), cigarIterator, cigarBackwardsIterator + 1);
+        realignedCigars.addOperations(cigarIterator, cigarBackwardsIterator + 1);
         if (softClipEnd)
         {
-            ISAAC_ASSERT_MSG(realignedCigars.capacity() > realignedCigars.size(), "Realigned CIGAR buffer is out of capacity");
             realignedCigars.addOperation(softClipEnd, Cigar::SOFT_CLIP);
         }
 
@@ -397,7 +396,7 @@ GapRealigner::GapChoice GapRealigner::verifyGapsChoice(
     unsigned currentGapIndex = 0;
     BOOST_FOREACH(const gapRealigner::Gap& gap, std::make_pair(gaps.first, gaps.second))
     {
-        if (choice & (1 << currentGapIndex))
+        if (choice & (GapChoiceBitmask(1) << currentGapIndex))
         {
 //            ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "testing " << gap);
             if (gap.getEndPos(true) <= lastGapEndPos)// || gap.getBeginPos() > lastGapEndPos + basesLeft)
@@ -582,9 +581,10 @@ bool GapRealigner::applyChoice(
     Cigar::OpCode lastOperation = Cigar::UNKNOWN;
     BOOST_FOREACH(const gapRealigner::Gap& gap, std::make_pair(gaps.first, gaps.second))
     {
-        if (choice & (1 << currentGapIndex))
+        if (choice & (GapChoiceBitmask(1) << currentGapIndex))
         {
-            ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, " Applying " << gap << " to " << fragment);
+            ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, " Applying choice " << choice <<
+                " gap index " << currentGapIndex << " " << gap << " to " << fragment);
 
 //            ISAAC_THREAD_CERR << "lastGapEndPos=" << lastGapEndPos << std::endl;
 
@@ -815,7 +815,7 @@ bool GapRealigner::findStartPos(
     unsigned basesLeft = pivotPos.getPosition() - alignmentPos;
     BOOST_REVERSE_FOREACH(const gapRealigner::Gap& gap, std::make_pair(gaps.first, gaps.first + pivotGapIndex))
     {
-        if (choice & (1 << gapIndex))
+        if (choice & (GapChoiceBitmask(1) << gapIndex))
         {
             if (gap.getEndPos(false) > overlapPos)
             {
@@ -955,7 +955,7 @@ public:
         unsigned gapIndex = 0;
         BOOST_FOREACH(const gapRealigner::Gap &gap, std::make_pair(trace.gaps_.first, trace.gaps_.second) )
         {
-            if (trace.choice_ & (1 << gapIndex))
+            if (trace.choice_ & (GapRealigner::GapChoiceBitmask(1) << gapIndex))
             {
                 os << gap << " ";
             }
@@ -980,7 +980,7 @@ void GapRealigner::verifyGapsChoice(
     BOOST_FOREACH(const gapRealigner::Gap& pivotGap, std::make_pair(gaps.first, gaps.second))
     //                for (unsigned pivotGapIndex = 0; gaps.size() != pivotGapIndex; ++pivotGapIndex)
     {
-        if (choice & (1 << pivotGapIndex))
+        if (choice & (GapChoiceBitmask(1) << pivotGapIndex))
         {
             //TODO: check binBorder overrun
             reference::ReferencePosition newStarPos;
@@ -1036,6 +1036,11 @@ GapRealigner::GapChoice GapRealigner::findBetterGapsChoice(
     const PackedFragmentBuffer::Index& index,
     unsigned &leftToEvaluate)
 {
+//    if ("C5DKDANXX:1:2115:702297:0" == std::string(fragment.nameBegin(), fragment.nameEnd()))
+//    {
+//        ISAAC_THREAD_CERR << "C5DKDANXX:1:2115:702297:0 id=" << fragment << std::endl;
+//        exit(1);
+//    }
 //            const gapRealigner::OverlappingGapsFilter overlappingGapsFilter(gaps);
     gapRealigner::ChooseKGapsFilter<GapChoiceBitmask> gapsFilter(gaps, gapsPerFragmentMax_);
 
@@ -1105,8 +1110,14 @@ bool GapRealigner::realign(
     PackedFragmentBuffer &dataBuffer,
     alignment::Cigar &realignedCigars)
 {
+//    if ("HCCCLCCXX:7:1203:5402837:0" == std::string(fragment.nameBegin(), fragment.nameEnd()))
+//    {
+//        ISAAC_THREAD_CERR << fragment << std::endl;
+//    }
+
     std::size_t bufferSizeBeforeRealignment = realignedCigars.size();
     bool makesSenseToTryAgain = false;
+    bool ret = false;
 //    bool firstAttempt = true;
 //    lastAttemptGaps_.clear();
 
@@ -1236,42 +1247,43 @@ bool GapRealigner::realign(
 
                         index = tmp;
         //                ISAAC_THREAD_CERR << " before updatePairDetails=" << index << fragment << std::endl;
-                        updatePairDetails(index, fragment, dataBuffer);
+//                        updatePairDetails(index, fragment, dataBuffer);
         //                ISAAC_THREAD_CERR << "Applying choice done " << int(bestChoice) << " to gaps " << gaps << index << fragment << std::endl;
                         makesSenseToTryAgain = realignGapsVigorously_;
+                        ret = true;
                     }
                     else
                     {
-//                            ISAAC_THREAD_CERR << "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
-//                                "due to cigar compacting having to move read into the next bin." << std::endl;
+                        ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
+                                "due to cigar compacting having to move read into the next bin.");
                     }
                 }
                 else
                 {
-//                        ISAAC_THREAD_CERR << "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
-//                            "due to applyChoice having to move read into the next bin." << std::endl;
+                    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
+                            "due to applyChoice having to move read into the next bin.");
                 }
             }
             else
             {
-//                    ISAAC_THREAD_CERR << "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
-//                        "due to realigned read having to move to the next bin." << std::endl;
+                ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
+                        "due to realigned read having to move to the next bin.");
             }
         }
         else
         {
-//                ISAAC_THREAD_CERR << "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
-//                    "due to no choice being available." << std::endl;
+            ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "Ignoring choice" << bestChoice << " to gaps " << gaps << index << fragment <<
+                    "due to no choice being available.");
         }
     } while(makesSenseToTryAgain);
 
     ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "before compactRealignedCigarBuffer:" << index);
-    if (realignedCigars.size() != bufferSizeBeforeRealignment)
+    if (ret)
     {
         compactRealignedCigarBuffer(bufferSizeBeforeRealignment, index, realignedCigars);
+        ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "after compactRealignedCigarBuffer:" << index);
         return true;
     }
-    ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(fragment.clusterId_, "after compactRealignedCigarBuffer:" << index);
     return false;
 }
 
@@ -1282,6 +1294,7 @@ void GapRealigner::compactRealignedCigarBuffer(
 {
     const std::size_t cigarLength = std::distance(index.cigarBegin_, index.cigarEnd_);
     const std::size_t expectedBufferSize = bufferSizeBeforeRealignment + cigarLength;
+    ISAAC_ASSERT_MSG(expectedBufferSize <= realignedCigars.size(), "Unexpected buffer increase needed. realignedCigars.size():" << realignedCigars.size() << " expectedBufferSize:" << expectedBufferSize)
     if (expectedBufferSize  != realignedCigars.size())
     {
         std::copy(index.cigarBegin_, index.cigarEnd_, realignedCigars.begin() + bufferSizeBeforeRealignment);

@@ -448,7 +448,6 @@ inline std::ostream & operator <<(std::ostream &os, const FragmentHeader &header
     return os << "FragmentHeader(" <<
         header.bamTlen_ << "," <<
         header.fStrandPosition_ << "," <<
-        header.lowClipped_ << ":" << header.highClipped_ << "lchc," <<
         header.alignmentScore_ << "SM," <<
         header.templateAlignmentScore_ << "AS," <<
         header.mateFStrandPosition_ << "," <<

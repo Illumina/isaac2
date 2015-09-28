@@ -75,9 +75,7 @@ bool SemialignedEndsClipper::clipLeftSide(
             size_t before = cigarBuffer_.size();
             cigarBuffer_.addOperation(softClippedBeginBases, Cigar::SOFT_CLIP);
             cigarBuffer_.addOperation(mappedBeginBases, Cigar::ALIGN);
-            cigarBuffer_.insert(cigarBuffer_.end(),
-                                oldCigarBegin + 1,
-                                index.cigarEnd_);
+            cigarBuffer_.addOperations(oldCigarBegin + 1, index.cigarEnd_);
             index.cigarBegin_ = &cigarBuffer_.at(before);
             index.cigarEnd_ = &cigarBuffer_.back() + 1;
             return true;
@@ -128,7 +126,7 @@ bool SemialignedEndsClipper::clipRightSide(
             fragment.editDistance_ -= clipped.second;
 
             size_t before = cigarBuffer_.size();
-            cigarBuffer_.insert(cigarBuffer_.end(), index.cigarBegin_, oldCigarEnd - 1);
+            cigarBuffer_.addOperations(index.cigarBegin_, oldCigarEnd - 1);
             cigarBuffer_.addOperation(mappedEndBases, Cigar::ALIGN);
             cigarBuffer_.addOperation(softClippedEndBases, Cigar::SOFT_CLIP);
             index.cigarBegin_ = &cigarBuffer_.at(before);

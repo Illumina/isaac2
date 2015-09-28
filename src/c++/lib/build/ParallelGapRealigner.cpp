@@ -26,53 +26,58 @@ namespace isaac
 namespace build
 {
 
-inline std::size_t getTotalGapsCount(const std::vector<gapRealigner::RealignerGaps> &allGaps)
+void ParallelGapRealigner::realign(
+    isaac::build::GapRealigner& realigner,
+    io::FragmentAccessor& fragment, PackedFragmentBuffer::Index &index,
+    BinData& binData, isaac::alignment::Cigar& cigars)
 {
-    return std::accumulate(allGaps.begin(), allGaps.end(), 0,
-                           boost::bind(std::plus<std::size_t>(), _1,
-                                       boost::bind(&gapRealigner::RealignerGaps::getGapsCount, _2)));
-}
-
-void ParallelGapRealigner::threadRealignGaps(BinData &binData, unsigned long threadNumber)
-{
-    BOOST_FOREACH(PackedFragmentBuffer::Index &index, std::make_pair(binData.indexBegin(), binData.indexEnd()))
+    if (realigner.realign(binData.getRealignerGaps(fragment.barcode_), binData.bin_.getBinStart(), binData.bin_.getBinEnd(), index, fragment, binData.data_, cigars))
     {
-        io::FragmentAccessor &fragment = binData.data_.getFragment(index);
-        // realignment affects both reads. We must make sure each read of the same cluster is processed on the same thread
-        // otherwise realignment updates on one read can collide with post-realignmnet pair updates from another read.
-        if (fragment.clusterId_ % threads_.size() == threadNumber)
+        boost::unique_lock<boost::mutex> lock(cigarBufferMutex_);
         {
-            if (binData.bin_.hasPosition(fragment.fStrandPosition_))
-            {
-                if (threadGapRealigners_.at(threadNumber).realign(
-                    binData.getRealignerGaps(fragment.barcode_),
-                    binData.bin_.getBinStart(),
-                    binData.bin_.getBinEnd(), index, fragment,
-                    binData.data_,
-                    threadCigars_.at(threadNumber)))
-                {
-                    boost::unique_lock<boost::mutex> lock(cigarBufferMutex_);
-                    const std::size_t before = binData.additionalCigars_.size();
-                    binData.additionalCigars_.insert(binData.additionalCigars_.end(), index.cigarBegin_, index.cigarEnd_);
-                    index.cigarBegin_ = &binData.additionalCigars_.at(before);
-                    index.cigarEnd_ = &binData.additionalCigars_.back() + 1;
-                    threadCigars_.at(threadNumber).clear();
-                }
-            }
+            const std::size_t before = binData.additionalCigars_.size();
+            binData.additionalCigars_.addOperations(index.cigarBegin_, index.cigarEnd_);
+            index.cigarBegin_ = &binData.additionalCigars_.at(before);
+            index.cigarEnd_ = &binData.additionalCigars_.back() + 1;
+            // realignment affects both reads. We must make sure realignment updates on one read don't
+            // collide with post-realignmnet pair updates from another read.
+            realigner.updatePairDetails(barcodeTemplateLengthStatistics_, index, fragment, binData.data_);
         }
     }
 }
 
-void ParallelGapRealigner::realignGaps(BinData &binData)
+void ParallelGapRealigner::threadRealignGaps(boost::unique_lock<boost::mutex> &lock, BinData &binData, BinData::iterator &nextUnprocessed, unsigned long threadNumber)
 {
-    ISAAC_THREAD_CERR << "Realigning against " << getTotalGapsCount(binData.realignerGaps_) <<
-        " unique gaps. " << binData.bin_ << std::endl;
+//    ISAAC_THREAD_CERR << "threadRealignGaps this " << this  << std::endl;
 
-    threads_.execute(boost::bind(&ParallelGapRealigner::threadRealignGaps, this, boost::ref(binData), _1));
+    isaac::build::GapRealigner &realigner = threadGapRealigners_.at(threadNumber);
+    isaac::alignment::Cigar &cigars = threadCigars_.at(threadNumber);
+    static const std::size_t READS_AT_A_TIME = 1024;
 
-    ISAAC_THREAD_CERR << "Realigning gaps done" << std::endl;
+//    int blockCount = 0;
+    while (binData.indexEnd() != nextUnprocessed)
+    {
+        BinData::iterator ourBegin = nextUnprocessed;
+        const std::size_t readsToProcess = std::min<std::size_t>(READS_AT_A_TIME, std::distance(ourBegin, binData.indexEnd()));
+        nextUnprocessed += readsToProcess;
+        {
+            common::unlock_guard<boost::unique_lock<boost::mutex> > unlock(lock);
+            for (const BinData::iterator ourEnd = ourBegin + readsToProcess; ourEnd != ourBegin; ++ourBegin)
+            {
+                PackedFragmentBuffer::Index &index = *ourBegin;
+                io::FragmentAccessor &fragment = binData.data_.getFragment(index);
+                if (binData.bin_.hasPosition(fragment.fStrandPosition_))
+                {
+                    cigars.clear();
+                    realign(realigner, fragment, index, binData, cigars);
+                }
+            }
+        }
+//        ++blockCount;
+    }
+
+//    ISAAC_THREAD_CERR << "Thread " << threadNumber << " realigned " << blockCount << " blocks for " << binData.bin_ << std::endl;
 }
-
 
 } // namespace build
 } // namespace isaac

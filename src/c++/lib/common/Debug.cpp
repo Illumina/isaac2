@@ -24,9 +24,13 @@ namespace isaac
 {
 namespace common
 {
+
+
 namespace detail
 {
 
+// global variable that allows turning off cerr output for things such as unit tests.
+std::atomic_int CerrBlocker::cerrBlocked_(0);
 boost::recursive_mutex CerrLocker::cerrMutex_;
 
 
@@ -108,6 +112,7 @@ ScopedMallocBlockUnblock::~ScopedMallocBlockUnblock()
 {
     block_.block();
 }
+
 
 } // namespace common
 } // namespace isaac

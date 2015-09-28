@@ -42,12 +42,15 @@ unsigned long BinSorter::serialize(
     {
         return 0;
     }
+    ISAAC_THREAD_CERR << "Sorting offsets for bam " << binData.bin_ << std::endl;
+
     bamSerializer_.prepareForBam(binData.data_, binData, binData.additionalCigars_);
+
+    ISAAC_THREAD_CERR << "Sorting offsets for bam done " << binData.bin_ << std::endl;
 
     ISAAC_THREAD_CERR << "Serializing records: " << binData.getUniqueRecordsCount() <<  " of them for bin " << binData.bin_ << std::endl;
 
-    common::TimeSpec serTimeStart;
-    ISAAC_ASSERT_MSG(-1 != clock_gettime(CLOCK_REALTIME, &serTimeStart), "clock_gettime failed, errno: " << errno << strerror(errno));
+    std::time_t serTimeStart = common::time();
 
     if (binData.isUnalignedBin())
     {
@@ -81,10 +84,9 @@ unsigned long BinSorter::serialize(
         ISAAC_ASSERT_MSG(bgzfStream.strict_sync(), "Expecting the compressor to flush all the data");
     }
 
-    common::TimeSpec serTimeEnd;
-    ISAAC_ASSERT_MSG(-1 != clock_gettime(CLOCK_REALTIME, &serTimeEnd), "clock_gettime failed, errno: " << errno << strerror(errno));
+    std::time_t serTimeEnd = common::time();
 
-    ISAAC_THREAD_CERR << "Serializing records done: " << binData.getUniqueRecordsCount() <<  " of them for bin " << binData.bin_ << " in " << common::tsdiff(serTimeStart, serTimeEnd) << "seconds." << std::endl;
+    ISAAC_THREAD_CERR << "Serializing records done: " << binData.getUniqueRecordsCount() <<  " of them for bin " << binData.bin_ << " in " << ::std::difftime(serTimeEnd, serTimeStart) << "seconds." << std::endl;
     return binData.size();
 }
 
@@ -92,6 +94,8 @@ void BinSorter::resolveDuplicates(
     BinData &binData,
     BuildStats &buildStats)
 {
+    ISAAC_THREAD_CERR << "Resolving duplicates for bin " << binData.bin_ << std::endl;
+
     NotAFilter().filterInput(binData.data_, binData.seIdx_.begin(), binData.seIdx_.end(), buildStats, binData.binStatsIndex_, std::back_inserter(binData));
     if (keepDuplicates_ && !markDuplicates_)
     {
@@ -127,6 +131,7 @@ void BinSorter::resolveDuplicates(
     // we will not be needing these anymore. Free up some memory so that other bins get a chance to start earlier
     binData.unreserveIndexes();
 
+    ISAAC_THREAD_CERR << "Resolving duplicates done for bin " << binData.bin_ << std::endl;
 }
 
 template <typename BclIteratorT>

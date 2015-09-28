@@ -104,6 +104,7 @@ AlignWorkflow::AlignWorkflow(
     const build::GapRealignerMode realignGaps,
     const int bamGzipLevel,
     const std::string &bamPuFormat,
+    const bool bamProduceMd5,
     const std::vector<std::string> &bamHeaderTags,
     const double expectedBgzfCompressionRatio,
     const bool singleLibrarySamples,
@@ -180,6 +181,7 @@ AlignWorkflow::AlignWorkflow(
     , realignGaps_(realignGaps)
     , bamGzipLevel_(bamGzipLevel)
     , bamPuFormat_(bamPuFormat)
+    , bamProduceMd5_(bamProduceMd5)
     , bamHeaderTags_(bamHeaderTags)
     , expectedBgzfCompressionRatio_(expectedBgzfCompressionRatio)
     , singleLibrarySamples_(singleLibrarySamples)
@@ -479,7 +481,7 @@ const build::BarcodeBamMapping AlignWorkflow::generateBam(
                        sortedReferenceMetadataList_,
                        projectsDirectory_,
                        tempLoadersMax_, coresMax_, outputSaversMax_, realignGaps_,
-                       bamGzipLevel_, bamPuFormat_, bamHeaderTags_, expectedBgzfCompressionRatio_, singleLibrarySamples_,
+                       bamGzipLevel_, bamPuFormat_, bamProduceMd5_, bamHeaderTags_, expectedBgzfCompressionRatio_, singleLibrarySamples_,
                        keepDuplicates_, markDuplicates_, anchorMate_,
                        realignGapsVigorously_, realignDodgyFragments_, realignedGapsPerFragment_,
                        clipSemialigned_, 

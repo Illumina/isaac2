@@ -36,7 +36,7 @@ std::string Cigar::toString(const unsigned offset, const unsigned length) const
     return toString(begin() + offset, begin() + offset + length);
 }
 
-std::string Cigar::toString(const std::vector<uint32_t> &cigarBuffer, unsigned offset, unsigned length)
+std::string Cigar::toString(const Cigar &cigarBuffer, unsigned offset, unsigned length)
 {
     ISAAC_ASSERT_MSG(cigarBuffer.size() >= offset + length, "Requested end is outside of cigarBuffer");
     return toString(cigarBuffer.begin() + offset, cigarBuffer.begin() + offset + length);

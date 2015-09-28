@@ -344,8 +344,9 @@ void BclBgzfBaseCallsSource::loadClusters(
         }
         else
         {
+            const bool patternedFlowcell = flowcell.getAttribute<flowcell::Layout::BclBgzf, flowcell::PatternedFlowcellAttributeTag>();
             locsMapper_.mapTile(positionsFilePath_, tileMetadata.getClusterCount(),
-                                tileClusterOffsets_.at(tileBciIndexMap_.at(tileMetadata.getIndex())));
+                                patternedFlowcell ? 0 : tileClusterOffsets_.at(tileBciIndexMap_.at(tileMetadata.getIndex())));
             boolUseLocsPositions = true;
         }
         ISAAC_THREAD_CERR << "Loading Positions data done for " << tileMetadata << std::endl;

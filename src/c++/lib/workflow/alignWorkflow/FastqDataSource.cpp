@@ -126,7 +126,7 @@ flowcell::TileMetadataList FastqSeedSource<KmerT>::discoverTiles()
         if (1 == fastqFlowcellLayout_.getReadMetadataList().size())
         {
             // this will keep the current files open if the paths don't change
-            fastqLoader_.open(read1Path);
+            fastqLoader_.open(read1Path, fastqFlowcellLayout_.getAttribute<flowcell::Layout::Fastq, flowcell::FastqBaseQ0>());
         }
         else // assume paired data
         {
@@ -134,7 +134,7 @@ flowcell::TileMetadataList FastqSeedSource<KmerT>::discoverTiles()
                 fastqFlowcellLayout_.getLaneReadAttribute<flowcell::Layout::Fastq, flowcell::FastqFilePathAttributeTag>(
                     *currentLaneIterator_, fastqFlowcellLayout_.getReadMetadataList().at(1).getNumber());
             // this will keep the current files open if the paths don't change
-            fastqLoader_.open(read1Path, read2Path);
+            fastqLoader_.open(read1Path, read2Path, fastqFlowcellLayout_.getAttribute<flowcell::Layout::Fastq, flowcell::FastqBaseQ0>());
         }
 
         std::vector<char>::iterator clustersEnd = clusters_.cluster(0);
@@ -238,13 +238,16 @@ void FastqBaseCallsSource::loadClusters(
 
     if (1 == flowcell.getReadMetadataList().size())
     {
-        fastqLoader_.open(fastqFilePaths_[0]);
+        fastqLoader_.open(fastqFilePaths_[0],
+                          flowcell.getAttribute<flowcell::Layout::Fastq, flowcell::FastqBaseQ0>());
     }
     else
     {
         flowcell.getLaneReadAttribute<flowcell::Layout::Fastq, flowcell::FastqFilePathAttributeTag>(
             tileMetadata.getLane(), flowcell.getReadMetadataList().at(1).getNumber(), fastqFilePaths_.at(1));
-        fastqLoader_.open(fastqFilePaths_[0], fastqFilePaths_[1]);
+
+        fastqLoader_.open(fastqFilePaths_[0], fastqFilePaths_[1],
+                          flowcell.getAttribute<flowcell::Layout::Fastq, flowcell::FastqBaseQ0>());
     }
 
     const unsigned clustersToLoad = tileMetadata.getClusterCount();

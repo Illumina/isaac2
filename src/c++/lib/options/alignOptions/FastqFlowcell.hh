@@ -56,6 +56,7 @@ public:
         const unsigned readNameLength,
         std::string useBasesMask,
         const bool allowVariableFastqLength,
+        const char fastqQ0,
         const std::string &seedDescriptor,
         const unsigned seedLength,
         const reference::ReferenceMetadataList &referenceMetadataList,
@@ -76,10 +77,12 @@ private:
         const boost::filesystem::path &baseCallsDirectory);
     static FastqFlowcellInfo parseFastqFlowcellInfo(
         const FastqPathPair &laneFilePaths,
+        const char fastqQ0,
         const unsigned readNameLength);
     static FastqFlowcellInfo parseFastqFlowcellInfo(
         const FastqPathPairList &laneFilePaths,
         const bool allowVariableFastqLength,
+        const char fastqQ0,
         const unsigned readNameLength);
 
 };

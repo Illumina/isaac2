@@ -40,8 +40,9 @@ namespace isaac
 namespace alignment
 {
 
-class Cigar: public std::vector<uint32_t>
+class Cigar: std::vector<uint32_t>
 {
+    typedef std::vector<uint32_t> BaseT;
 public:
     Cigar (const std::size_t n, const uint32_t &init) : std::vector<uint32_t>(n, init)
     {
@@ -77,8 +78,39 @@ public:
         UNKNOWN = 12 // '?'
     };
 
+    using BaseT::at;
+    using BaseT::back;
+    using BaseT::begin;
+    using BaseT::capacity;
+    using BaseT::clear;
+    using BaseT::iterator;
+    using BaseT::const_iterator;
+    using BaseT::empty;
+    using BaseT::end;
+    using BaseT::erase;
+    using BaseT::front;
+    using BaseT::pop_back;
+    using BaseT::reserve;
+    using BaseT::resize;
+    using BaseT::size;
+    using BaseT::value_type;
+    using BaseT::operator[];
+
+    void reserve(size_type n)
+    {
+        BaseT::reserve(n);
+    }
+
     // we're in read length of hundreds. assume read length of thousands plus the operation code char
     static const unsigned OPERATION_CHARS_MAX = 5;
+    template <typename IteratorT>
+    void addOperations(IteratorT b, IteratorT e)
+    {
+        // reallocation of Cigar buffer can cause lots of bad memory access. Just prohibit it
+        ISAAC_ASSERT_MSG(capacity() >= size() + std::distance(b, e), "CIGAR buffer is out of capacity:" << capacity() << " needed:" << std::distance(b, e) << " more");
+        insert(end(), b, e);
+    }
+
     void addOperation(long length, OpCode opCode)
     {
         unsigned long ulength = std::abs(length);
@@ -93,6 +125,8 @@ public:
 
         do
         {
+            // reallocation of Cigar buffer can cause lots of bad memory access. Just prohibit it
+            ISAAC_ASSERT_MSG(capacity() >= size() + 1, "CIGAR buffer is out of capacity:" << capacity());
             push_back(encode(ulength, opCode));
         } while (ulength);
     }
@@ -105,7 +139,7 @@ public:
 
     std::string toString() const;
     std::string toString(unsigned offset, unsigned length) const;
-    static std::string toString(const std::vector<uint32_t> &cigarBuffer, unsigned offset, unsigned length);
+    static std::string toString(const Cigar &cigarBuffer, unsigned offset, unsigned length);
     static char opCodeToChar(const Cigar::OpCode opCode)
     {
         static const char opCodes[] = {'M','I','D','N','S','H','P','=','X','C','B','F','?'};
@@ -218,15 +252,6 @@ public:
         Component unpack() const {return Component(Component::first_type(length_), Component::second_type(opCode_));}
     };
 
-    static uint32_t encode(unsigned long &length, OpCode opCode)
-    {
-        Encoder c(length, opCode);
-        length -= c.getLength();
-        return c.getValue();
-//        assert(ALIGN <= opCode);
-//        assert(UNKNOWN >= opCode);
-//        return (length<<4) | opCode;
-    }
     static Component decode(const uint32_t value)
     {
         return Encoder(value).unpack();
@@ -280,6 +305,16 @@ public:
             ret = std::max(ret, getMaxOperationsForReads(flowcell.getReadMetadataList()));
         }
         return ret;
+    }
+private:
+    static uint32_t encode(unsigned long &length, OpCode opCode)
+    {
+        Encoder c(length, opCode);
+        length -= c.getLength();
+        return c.getValue();
+//        assert(ALIGN <= opCode);
+//        assert(UNKNOWN >= opCode);
+//        return (length<<4) | opCode;
     }
 };
 

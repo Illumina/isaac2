@@ -147,14 +147,15 @@ FastqFlowcell::FastqPathPairList FastqFlowcell::findFastqPathPairs(
 
 FastqFlowcellInfo FastqFlowcell::parseFastqFlowcellInfo(
     const FastqPathPair &laneFilePaths,
+    const char fastqQ0,
     const unsigned readNameLength)
 {
     FastqFlowcellInfo ret;
 
     if (!laneFilePaths.r1Path_.empty())
     {
-        io::FastqReader reader(false, 1);
-        reader.open(laneFilePaths.r1Path_);
+        io::FastqReader reader(false, 1, 0);
+        reader.open(laneFilePaths.r1Path_, fastqQ0);
         CasavaFastqParser parser(reader);
         ret.readLengths_.first = parser.parseReadLength();
 
@@ -163,8 +164,8 @@ FastqFlowcellInfo FastqFlowcell::parseFastqFlowcellInfo(
     }
     if (!laneFilePaths.r2Path_.empty())
     {
-        io::FastqReader reader(false, 1);
-        reader.open(laneFilePaths.r2Path_);
+        io::FastqReader reader(false, 1, 0);
+        reader.open(laneFilePaths.r2Path_, fastqQ0);
         CasavaFastqParser parser(reader);
         ret.readLengths_.second = parser.parseReadLength();
 
@@ -193,6 +194,7 @@ FastqFlowcellInfo FastqFlowcell::parseFastqFlowcellInfo(
 FastqFlowcellInfo FastqFlowcell::parseFastqFlowcellInfo(
     const FastqPathPairList &flowcellFilePaths,
     const bool allowVariableFastqLength,
+    const char fastqQ0,
     const unsigned readNameLength)
 {
     FastqFlowcellInfo ret;
@@ -200,7 +202,7 @@ FastqFlowcellInfo FastqFlowcell::parseFastqFlowcellInfo(
     for (FastqPathPairList::const_iterator it = flowcellFilePaths.begin();
         flowcellFilePaths.end() != it; ++it)
     {
-        FastqFlowcellInfo anotherLane = parseFastqFlowcellInfo(*it, readNameLength);
+        FastqFlowcellInfo anotherLane = parseFastqFlowcellInfo(*it, fastqQ0, readNameLength);
         if (!flowcellInfoReady)
         {
             if (anotherLane.readLengths_.first || anotherLane.readLengths_.second)
@@ -251,6 +253,7 @@ flowcell::Layout FastqFlowcell::createFilteredFlowcell(
     const unsigned readNameLength,
     std::string useBasesMask,
     const bool allowVariableFastqLength,
+    const char fastqQ0,
     const std::string &seedDescriptor,
     const unsigned seedLength,
     const reference::ReferenceMetadataList &referenceMetadataList,
@@ -265,7 +268,7 @@ flowcell::Layout FastqFlowcell::createFilteredFlowcell(
         BOOST_THROW_EXCEPTION(common::InvalidOptionException(message.str()));
     }
 
-    FastqFlowcellInfo flowcellInfo = parseFastqFlowcellInfo(flowcellFilePaths, allowVariableFastqLength, readNameLength);
+    FastqFlowcellInfo flowcellInfo = parseFastqFlowcellInfo(flowcellFilePaths, allowVariableFastqLength, fastqQ0, readNameLength);
 
     std::vector<unsigned int> readLengths;
     if (flowcellInfo.readLengths_.first)
@@ -308,7 +311,7 @@ flowcell::Layout FastqFlowcell::createFilteredFlowcell(
 
     flowcell::Layout fc(baseCallsDirectory,
                         flowcell::Layout::Fastq,
-                        flowcell::FastqFlowcellData(compressed),
+                        flowcell::FastqFlowcellData(compressed, fastqQ0),
                         laneNumberMax,
                         flowcellInfo.readNameLength_,
                         std::vector<unsigned>(),

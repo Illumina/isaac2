@@ -64,6 +64,7 @@ class Build
     const unsigned maxSavers_;
     const int bamGzipLevel_;
     const std::string &bamPuFormat_;
+    const bool bamProduceMd5_;
     const std::vector<std::string> &bamHeaderTags_;
     // forcedDodgyAlignmentScore_ gets assigned to reads that have their scores at ushort -1
     const unsigned char forcedDodgyAlignmentScore_;
@@ -108,6 +109,23 @@ class Build
     ParallelGapRealigner gapRealigner_;
     BinSorter binSorter_;
 
+    struct Task
+    {
+        std::size_t maxThreads_;
+        /// lower priority values indicate higher priority tasks
+        std::size_t priority_;
+        bool complete_;
+        std::size_t threadsIn_;
+        Task(const std::size_t maxThreads, const std::size_t priority):
+            maxThreads_(maxThreads), priority_(priority), complete_(false), threadsIn_(0){}
+        bool busy() const {return maxThreads_ == threadsIn_;}
+        virtual ~Task(){}
+        virtual void execute(boost::unique_lock<boost::mutex> &lock, const unsigned threadNumber) = 0;
+    };
+
+    typedef std::vector<Task*> Tasks;
+    Tasks tasks_;
+
 public:
     Build(const std::vector<std::string> &argv,
           const std::string &description,
@@ -125,6 +143,7 @@ public:
           const build::GapRealignerMode realignGaps,
           const int bamGzipLevel,
           const std::string &bamPuFormat,
+          const bool bamProduceMd5,
           const std::vector<std::string> &bamHeaderTags,
           const double expectedBgzfCompressionRatio,
           const bool singleLibrarySamples,
@@ -189,10 +208,20 @@ private:
 
     void returnLoadSlot(const bool exceptionUnwinding);
 
-    void waitForComputeSlot(
+    bool preemptCompute(
+        boost::unique_lock<boost::mutex>& lock,
+        const std::size_t threadNumber,
+        Task *task);
+
+    bool preempt(boost::unique_lock<boost::mutex> &lock, const unsigned threadNumber, Task *task);
+
+    template <typename OperationT>
+    void preemptComputeSlot(
         boost::unique_lock<boost::mutex> &lock,
-        const alignment::BinMetadataCRefList::const_iterator thisThreadBinIt,
-        alignment::BinMetadataCRefList::const_iterator &nextUncompressedBinIt);
+        const std::size_t maxThreads,
+        const std::size_t priority,
+        OperationT operation,
+        const unsigned threadNumber);
 
     void returnComputeSlot(const bool exceptionUnwinding);
 
@@ -230,6 +259,12 @@ private:
         const unsigned outputFileIndex) const;
 
     void testBinsFitInRam();
+    bool executePreemptTask(
+        boost::unique_lock<boost::mutex>& lock,
+        Task& task,
+        const unsigned threadNumber) const;
+
+
 };
 
 } // namespace build

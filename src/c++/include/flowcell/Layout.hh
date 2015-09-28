@@ -53,8 +53,9 @@ struct BclFlowcellData
 
 struct FastqFlowcellData
 {
-    FastqFlowcellData(bool compressed) : compressed_(compressed){}
+    FastqFlowcellData(bool compressed, char fastqQ0) : compressed_(compressed), fastqQ0_(fastqQ0){}
     bool compressed_;
+    char fastqQ0_;
 };
 
 struct BamFlowcellData

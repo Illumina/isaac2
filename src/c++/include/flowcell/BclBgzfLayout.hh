@@ -46,6 +46,12 @@ struct TilesPerLaneMaxAttributeTag
     friend std::ostream &operator << (std::ostream &os, const TilesPerLaneMaxAttributeTag &tag){return os << "TilesPerLaneMaxAttributeTag";}
 };
 
+struct PatternedFlowcellAttributeTag
+{
+    typedef bool value_type;
+    friend std::ostream &operator << (std::ostream &os, const PatternedFlowcellAttributeTag &tag){return os << "PatternedFlowcellAttributeTag";}
+};
+
 template<>
 void Layout::getLaneCycleAttribute<Layout::BclBgzf, BclFilePathAttributeTag>(
     const unsigned lane, const unsigned cycle, boost::filesystem::path &result) const;
@@ -69,6 +75,10 @@ void Layout::getLaneAttribute<Layout::BclBgzf, BciFilePathAttributeTag>(
 template<>
 const unsigned& Layout::getAttribute<Layout::BclBgzf, TilesPerLaneMaxAttributeTag>(
     unsigned &result) const;
+
+template<>
+const bool& Layout::getAttribute<Layout::BclBgzf, PatternedFlowcellAttributeTag>(
+    bool &result) const;
 
 template<>
 inline boost::filesystem::path Layout::getLongestAttribute<Layout::BclBgzf, BciFilePathAttributeTag>() const

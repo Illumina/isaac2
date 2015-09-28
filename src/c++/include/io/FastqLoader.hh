@@ -62,18 +62,20 @@ public:
     }
 
     void open(
-        const boost::filesystem::path &read1Path)
+        const boost::filesystem::path &read1Path,
+        const char fastqQ0)
     {
-        readReaders_[0]->open(read1Path);
+        readReaders_[0]->open(read1Path, fastqQ0);
         paired_ = false;
     }
 
     void open(
         const boost::filesystem::path &read1Path,
-        const boost::filesystem::path &read2Path)
+        const boost::filesystem::path &read2Path,
+        const char fastqQ0)
     {
-        readReaders_[0]->open(read1Path);
-        readReaders_[1]->open(read2Path);
+        readReaders_[0]->open(read1Path, fastqQ0);
+        readReaders_[1]->open(read2Path, fastqQ0);
         paired_ = true;
     }
 

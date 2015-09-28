@@ -33,8 +33,6 @@ CPPUNIT_TEST_SUITE_NAMED_REGISTRATION( TestGapRealigner, registryName("TestGapRe
 
 TestGapRealigner::TestGapRealigner()
 {
-
-
 }
 
 void TestGapRealigner::setUp()
@@ -191,7 +189,7 @@ TestFragmentAccessor initFragment(
     ISAAC_ASSERT_MSG(fStrandPos.getPosition() < ref.size(), "Reference too short");
 
     using alignment::Cigar;
-    Cigar originalCigar;
+    Cigar originalCigar; originalCigar.reserve(1024);
     std::string::const_iterator readIterator(read.begin() + unclippedPos);
     std::string::const_iterator refIterator(ref.begin() + unclippedPos);
 
@@ -390,7 +388,6 @@ RealignResult realign(
 
     alignment::BinMetadata bin(barcodeMetadataList.size(), 0, reference::ReferencePosition(0,0), 1000000, "tada", 0);
 
-    std::vector<alignment::TemplateLengthStatistics> templateLengthStatistics(1);
     build::gapRealigner::RealignerGaps realignerGaps;
     addGaps(ref, gaps, realignerGaps);
 // this does not work due to * considered    addGaps(ref, ref, realigner, false);
@@ -415,9 +412,9 @@ RealignResult realign(
                                              fragment.cigarBegin(), fragment.cigarEnd(), fragment.isReverse());
 
     const unsigned realignedGapsPerFragment = 8;
-    alignment::Cigar realignedCigars;
+    alignment::Cigar realignedCigars; realignedCigars.reserve(1024);
     realignedCigars.reserve(realBin.getTotalCigarLength() + realBin.getTotalElements() * (1 + realignedGapsPerFragment * 2));
-    build::GapRealigner realigner(false, false, 4, mismatchCost, gapOpenCost, 0, false, barcodeMetadataList, templateLengthStatistics, contigList);
+    build::GapRealigner realigner(false, false, 4, mismatchCost, gapOpenCost, 0, false, barcodeMetadataList, contigList);
     realigner.realign(realignerGaps, binStartPos, binEndPos, index, dataBuffer.getFragment(index), dataBuffer, realignedCigars);
 
     ret.realignedPos_ = index.pos_;

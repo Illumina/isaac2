@@ -204,7 +204,15 @@ std::vector<boost::shared_ptr<boost::iostreams::filtering_ostream> > Build::crea
 
                 ret.push_back(boost::shared_ptr<boost::iostreams::filtering_ostream>(new boost::iostreams::filtering_ostream()));
                 boost::iostreams::filtering_ostream &bamStream = *ret.back();
-                bamStream.push(io::FileSinkWithMd5(bamPath.c_str(), std::ios_base::binary));
+                if (bamProduceMd5_)
+                {
+                    bamStream.push(io::FileSinkWithMd5(bamPath.c_str(), std::ios_base::binary));
+                }
+                else
+                {
+                    bamStream.push(boost::iostreams::basic_file_sink<char>(bamPath.c_str(), std::ios_base::binary));
+                }
+
                 if (!bamStream) {
                     BOOST_THROW_EXCEPTION(common::IoException(errno, "Failed to open output BAM file " + bamPath.string()));
                 }
@@ -350,6 +358,7 @@ Build::Build(const std::vector<std::string> &argv,
              const build::GapRealignerMode realignGaps,
              const int bamGzipLevel,
              const std::string &bamPuFormat,
+             const bool bamProduceMd5,
              const std::vector<std::string> &bamHeaderTags,
              const double expectedBgzfCompressionRatio,
              const bool singleLibrarySamples,
@@ -385,6 +394,7 @@ Build::Build(const std::vector<std::string> &argv,
      maxSavers_(maxSavers),
      bamGzipLevel_(bamGzipLevel),
      bamPuFormat_(bamPuFormat),
+     bamProduceMd5_(bamProduceMd5),
      bamHeaderTags_(bamHeaderTags),
      forcedDodgyAlignmentScore_(forcedDodgyAlignmentScore),
      singleLibrarySamples_(singleLibrarySamples),
@@ -412,7 +422,7 @@ Build::Build(const std::vector<std::string> &argv,
      threadBgzfStreams_(threads_.size()),
      threadBamIndexParts_(threads_.size()),
      kUniquenessAnnotations_(reference::loadAnnotations(sortedReferenceMetadataList_)),
-     gapRealigner_(maxComputers_,
+     gapRealigner_(threads_.size(),
          realignGapsVigorously, realignDodgyFragments, realignedGapsPerFragment, clipSemialigned,
          barcodeMetadataList, barcodeTemplateLengthStatistics, contigLists_),
      binSorter_(singleLibrarySamples_, keepDuplicates_, markDuplicates_, anchorMate_,
@@ -643,6 +653,8 @@ boost::shared_ptr<BinData> Build::allocateBin(
     common::ScopedMallocBlock &mallocBlock,
     const std::size_t threadNumber)
 {
+    bool warningTraced = false;
+
     boost::shared_ptr<BinData> ret;
     unsigned long requiredMemory = 0;
     while(nextUnallocatedBinIt != thisThreadBinIt ||
@@ -655,10 +667,15 @@ boost::shared_ptr<BinData> Build::allocateBin(
 
         if (nextUnallocatedBinIt == thisThreadBinIt)
         {
-            ISAAC_THREAD_CERR << "WARNING: Holding up processing of bin: " <<
-                thisThreadBinIt->get().getPath() << " until " << requiredMemory <<
-                " bytes of allowed memory is available." << std::endl;
+            if (!warningTraced)
+            {
+                ISAAC_THREAD_CERR << "WARNING: Holding up processing of bin: " <<
+                    thisThreadBinIt->get().getPath() << " until " << requiredMemory <<
+                    " bytes of allowed memory is available." << std::endl;
+                warningTraced = true;
+            }
         }
+
         stateChangedCondition_.wait(lock);
     }
     ++nextUnallocatedBinIt;
@@ -674,6 +691,8 @@ void Build::waitForLoadSlot(
     common::ScopedMallocBlock &mallocBlock,
     const std::size_t threadNumber)
 {
+    bool warningTraced = false;
+
     while(nextUnloadedBinIt != thisThreadBinIt || !maxLoaders_)
     {
         if (forceTermination_)
@@ -681,11 +700,13 @@ void Build::waitForLoadSlot(
             BOOST_THROW_EXCEPTION(common::ThreadingException("Terminating due to failures on other threads"));
         }
 
-        if (nextUnloadedBinIt == thisThreadBinIt)
+        if (nextUnloadedBinIt == thisThreadBinIt && !warningTraced)
         {
             ISAAC_THREAD_CERR << "WARNING: Holding up processing of bin: " <<
                 thisThreadBinIt->get().getPath() << " until a load slot is available" << std::endl;
+            warningTraced = true;
         }
+
         stateChangedCondition_.wait(lock);
     }
 
@@ -704,34 +725,142 @@ void Build::returnLoadSlot(const bool exceptionUnwinding)
     stateChangedCondition_.notify_all();
 }
 
-void Build::waitForComputeSlot(
-    boost::unique_lock<boost::mutex> &lock,
-    const alignment::BinMetadataCRefList::const_iterator thisThreadBinIt,
-    alignment::BinMetadataCRefList::const_iterator &nextUncompressedBinIt)
+/**
+ * @return true if this thread was the first to set task to 'complete" state
+ */
+bool Build::executePreemptTask(
+    boost::unique_lock<boost::mutex>& lock,
+    Task &task,
+    const unsigned threadNumber) const
 {
-    const unsigned binIndex = std::distance(bins_.begin(), thisThreadBinIt);
-    computeSlotWaitingBins_.push_back(binIndex);
+    //    ISAAC_THREAD_CERR << "preempt task " << task << " on thread " << threadNumber << "in:" << task->threadsIn_ << std::endl;
+    ++task.threadsIn_;
+    //    ISAAC_THREAD_CERR << "preempt " << &lock << " " << threadNumber << std::endl;
+    task.execute(lock, threadNumber);
+    --task.threadsIn_;
+    //    ISAAC_THREAD_CERR << "preempt task " << task << " on thread " << threadNumber << "in:" << task->threadsIn_ << " done" << std::endl;
+    //stop new threads entering the task;
+    if (!task.complete_)
+    {
+        task.complete_ = true;
+        return true;
+    }
 
-    while(!maxComputers_ ||
-        binIndex != *std::min_element(computeSlotWaitingBins_.begin(), computeSlotWaitingBins_.end()))
+    return false;
+}
+
+bool Build::preempt(boost::unique_lock<boost::mutex> &lock, const unsigned threadNumber, Task *ownTask)
+{
+    // find the lowest priority incomplete and not busy task that is not higher than ownTask unless ownTask is 0
+    Tasks::iterator highesttPriorityTask = std::min_element(
+        tasks_.begin(), tasks_.end(), [ownTask](const Task *left, const Task *right)
+        {
+            if (ownTask && left->priority_ > ownTask->priority_)
+            {
+                return false;
+            }
+
+            if (left->complete_ || left->busy())
+            {
+                return false;
+            }
+
+            if (ownTask && right->priority_ > ownTask->priority_)
+            {
+                return true;
+            }
+
+            if (right->complete_ || right->busy())
+            {
+                return true;
+            }
+            return left->priority_ < right->priority_;
+        });
+
+    Task *task = *highesttPriorityTask;
+    if(tasks_.end() == highesttPriorityTask || task->complete_ || task->busy() ||
+        (ownTask && ownTask->busy() && task->priority_ > ownTask->priority_))
+    {
+        return false;
+    }
+
+    ISAAC_ASSERT_MSG(!ownTask || task->priority_ <= ownTask->priority_, "invalid task found");
+    //    ISAAC_THREAD_CERR << "preempt task " << task << " on thread " << threadNumber << "in:" << task->threadsIn_ << std::endl;
+    if (executePreemptTask(lock, *task, threadNumber))
+    {
+        // cleanup newly completed tasks
+        tasks_.erase(std::remove_if(tasks_.begin(), tasks_.end(), [](const Task *task) {return !task->threadsIn_ && task->complete_;}), tasks_.end());
+    }
+
+    return true;
+}
+
+bool Build::preemptCompute(
+    boost::unique_lock<boost::mutex>& lock,
+    const std::size_t threadNumber,
+    Task *task)
+{
+    bool stateMightHaveChanged = false;
+    if (maxComputers_)
+    {
+        --maxComputers_;
+        ISAAC_BLOCK_WITH_CLENAUP(boost::bind(&Build::returnComputeSlot, this, _1))
+        {
+            stateMightHaveChanged = preempt(lock, threadNumber, task);
+        }
+    }
+    return stateMightHaveChanged;
+}
+
+template <typename OperationT>
+void Build::preemptComputeSlot(
+    boost::unique_lock<boost::mutex> &lock,
+    const std::size_t maxThreads,
+    const std::size_t priority,
+    OperationT operation,
+    const unsigned threadNumber)
+{
+    struct OperationTask : public Task
+    {
+        OperationT operation_;
+        OperationTask(const std::size_t maxThreads, const std::size_t priority, OperationT operation):
+            Task(maxThreads, priority), operation_(operation) {}
+        virtual void execute(boost::unique_lock<boost::mutex> &l, const unsigned tn)
+        {
+//            ISAAC_THREAD_CERR << "Task::execute " << &l << " " << tn << std::endl;
+            operation_(l, tn);
+        }
+    };
+    OperationTask ourTask(maxThreads, priority, operation);
+    tasks_.push_back(&ourTask);
+
+    stateChangedCondition_.notify_all();
+
+//    ISAAC_THREAD_CERR << "preemptComputeSlot " << &lock << " " << threadNumber << std::endl;
+    // keep working until our task is complete.
+    while (!ourTask.complete_)
     {
         if (forceTermination_)
         {
-            BOOST_THROW_EXCEPTION(common::ThreadingException("Terminating due to failures on other threads"));
+            // don't admit new threads
+            ourTask.complete_ = true;
         }
-
-        if (nextUncompressedBinIt == thisThreadBinIt)
+        else if (!preemptCompute(lock, threadNumber, &ourTask))
         {
-            ISAAC_THREAD_CERR << "WARNING: Holding up processing of bin: " <<
-                thisThreadBinIt->get().getPath() << " until a compute slot is available." << std::endl;
+            stateChangedCondition_.wait(lock);
         }
+    }
 
+    // don't leave while there are some threads still in.
+    while (ourTask.threadsIn_)
+    {
         stateChangedCondition_.wait(lock);
     }
-    --maxComputers_;
-    computeSlotWaitingBins_.erase(std::find(computeSlotWaitingBins_.begin() ,computeSlotWaitingBins_.end(), binIndex));
-    ++nextUncompressedBinIt;
-    stateChangedCondition_.notify_all();
+
+    if (forceTermination_)
+    {
+        BOOST_THROW_EXCEPTION(common::ThreadingException("Terminating due to failures on other threads"));
+    }
 }
 
 void Build::returnComputeSlot(const bool exceptionUnwinding)
@@ -797,32 +926,75 @@ void Build::sortBinParallel(alignment::BinMetadataCRefList::const_iterator &next
             }
         }
 
-        waitForComputeSlot(lock, thisThreadBinIt, nextUncompressedBinIt);
-        ISAAC_BLOCK_WITH_CLENAUP(boost::bind(&Build::returnComputeSlot, this, _1))
         {
-            {
-                common::unlock_guard<boost::unique_lock<boost::mutex> > unlock(lock);
-                binSorter_.resolveDuplicates(*binDataPtr, stats_);
-                if (!binDataPtr->isUnalignedBin() && REALIGN_NONE != realignGaps_)
+            preemptComputeSlot(
+                lock, 1, std::distance(bins_.begin(), thisThreadBinIt),
+                [this, &binDataPtr](boost::unique_lock<boost::mutex> &l, const unsigned tn)
                 {
-                    boost::unique_lock<boost::mutex> lock(realignMutex_);
-                    gapRealigner_.realignGaps(*binDataPtr);
-                }
+                    common::unlock_guard<boost::unique_lock<boost::mutex> > unlock(l);
+                    binSorter_.resolveDuplicates(*binDataPtr, stats_);
+                },
+                threadNumber);
 
-                binSorter_.serialize(
-                    *binDataPtr, threadBgzfStreams_.at(threadNumber), threadBamIndexParts_.at(threadNumber));
-                threadBgzfStreams_.at(threadNumber).clear();
+            if (!binDataPtr->isUnalignedBin() && REALIGN_NONE != realignGaps_)
+            {
+                BinData::iterator nextUnprocessed = binDataPtr->indexBegin();
+                int threadsIn = 0;
+                preemptComputeSlot(
+                    lock, -1, std::distance(bins_.begin(), thisThreadBinIt),
+                    [this, &threadsIn, &binDataPtr, &nextUnprocessed](boost::unique_lock<boost::mutex> &l, const unsigned tn)
+                    {
+                        ++threadsIn;
+                        if (nextUnprocessed  == binDataPtr->indexBegin())
+                        {
+                            ISAAC_THREAD_CERR << "Realigning against " << getTotalGapsCount(binDataPtr->realignerGaps_) <<
+                                " unique gaps. " << binDataPtr->bin_ << std::endl;
+                        }
+                        gapRealigner_.threadRealignGaps(l, *binDataPtr, nextUnprocessed, tn);
+                        if (!--threadsIn)
+                        {
+                            ISAAC_THREAD_CERR << "Realigning gaps done. " << binDataPtr->bin_ << std::endl;
+                        }
+                    },
+                    threadNumber);
+
             }
-            // give back some memory to allow other threads to load
-            // data while we're waiting for our turn to save
-            binDataPtr.reset();
+
+            preemptComputeSlot(
+                lock, 1, std::distance(bins_.begin(), thisThreadBinIt),
+                [this, &binDataPtr, threadNumber](boost::unique_lock<boost::mutex> &l, const unsigned tn)
+                {
+                    common::unlock_guard<boost::unique_lock<boost::mutex> > unlock(l);
+                    // Don't use tn!!! the streams have been allocated for the threadNumber.
+                    binSorter_.serialize(
+                        *binDataPtr, threadBgzfStreams_.at(threadNumber), threadBamIndexParts_.at(threadNumber));
+                    threadBgzfStreams_.at(threadNumber).clear();
+                },
+                threadNumber);
         }
+        // give back some memory to allow other threads to load
+        // data while we're waiting for our turn to save
+        binDataPtr.reset();
 
         // wait for our turn to store bam data
         waitForSaveSlot(lock, thisThreadBinIt, nextUnsavedBinIt);
         ISAAC_BLOCK_WITH_CLENAUP(boost::bind(&Build::returnSaveSlot, this, boost::ref(nextUnsavedBinIt), _1))
         {
             saveAndReleaseBuffers(lock, thisThreadBinIt->get().getPath(), threadNumber);
+        }
+    }
+
+    // Don't release thread until all saving is done. Use threads that don't get anything to process for preemptive tasks such as realignment.
+    while(!forceTermination_ && bins_.end() != nextUnsavedBinIt)
+    {
+        if (!preemptCompute(lock, threadNumber, 0))
+        {
+            stateChangedCondition_.wait(lock);
+        }
+        else
+        {
+            // have to notify all as the task threadsIn_ count and complete state changes
+            stateChangedCondition_.notify_all();
         }
     }
 }

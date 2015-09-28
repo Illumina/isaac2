@@ -106,6 +106,16 @@ public:
         std::vector<char>::resize(bin.getDataSize());
     }
 
+    void resize(const std::size_t size)
+    {
+        std::vector<char>::resize(size);
+    }
+
+    void reserve(const alignment::BinMetadata& bin)
+    {
+        std::vector<char>::reserve(bin.getDataSize());
+    }
+
     void unreserve()
     {
         std::vector<char>().swap(*this);

@@ -95,21 +95,12 @@ struct PairProbability
 
     bool operator < (const PairProbability &that) const
     {
-        // since the sum of log probabilities of reads has to be considered we can't compare reads individually
-        return
-            (r1_.pos() < that.r1_.pos() || (r1_.pos() == that.r1_.pos() &&
-                (r2_.pos() < that.r2_.pos() || (r2_.pos() == that.r2_.pos() &&
-                    //if we happen to have pair and its inversion, let's have the higher probability on top so that it counts towards the total
-                    (that.logProbability() < logProbability() || (logProbability() == that.logProbability() &&
-                        (r1_.observedLength() < that.r1_.observedLength() || (r1_.observedLength() == that.r1_.observedLength() &&
-                            r2_.observedLength() < that.r2_.observedLength()))))))));
+        return r1_ < that.r1_ || (r1_ == that.r1_ && r2_ < that.r2_);
     }
 
     bool operator == (const PairProbability &that) const
     {
-        // since the sum of log probabilities of reads has to be considered we can't compare reads individually
-        return r1_.pos() == that.r1_.pos() && r2_.pos() == that.r2_.pos() && logProbability() == that.logProbability() &&
-            r1_.observedLength() == that.r1_.observedLength() && r2_.observedLength() == that.r2_.observedLength();
+        return r1_ == that.r1_ && r2_ == that.r2_;
     }
 
     bool operator != (const PairProbability &that) const {return !(*this == that);}
@@ -162,12 +153,14 @@ struct BestPairInfo
             // So, max seeds per read times the max number of orphans times the max number of shadows that can be rescued for each orphan
             // plus the max number of shadows that have been discovered during seed matching...
             readProbabilities_[r].reserve(
-                maxSeedsPerRead * repeatThreshold * TRACKED_REPEATS_MAX_ONE_READ + TRACKED_REPEATS_MAX_ONE_READ);
+                maxSeedsPerRead * repeatThreshold * TRACKED_REPEATS_MAX_ONE_READ
+                    + TRACKED_REPEATS_MAX_ONE_READ);
         }
-
         // In the worst case each seed will generate --repeat-threshold alignments which then will generate TRACKED_REPEATS_MAX_ONE_READ shadows
         // So, max seeds per read times max number of orphans times the max number of shadows that can be rescued for each orphan times the number of reads
-        pairProbabilities_.reserve(maxSeedsPerRead * repeatThreshold * TRACKED_REPEATS_MAX_ONE_READ * READS_IN_A_PAIR);
+        pairProbabilities_.reserve(
+            maxSeedsPerRead * repeatThreshold * TRACKED_REPEATS_MAX_ONE_READ
+                * READS_IN_A_PAIR);
         repeats_.reserve(TRACKED_REPEATS_MAX_ONE_READ * READS_IN_A_PAIR);
     }
 
@@ -251,10 +244,14 @@ struct BestPairInfo
             if (!ignoreIgnored && sp.logProbability() == ignoreLp)
             {
                 ignoreIgnored = true;
+                ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(repeats_.front().getFragmentMetadata(readIndex).getCluster().getId(),
+                                                       "sumUniqueReadProbabilities: " << sp << " Ignored");
             }
             else
             {
                 ret += sp.probability();
+                ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(repeats_.front().getFragmentMetadata(readIndex).getCluster().getId(),
+                                                       "sumUniqueReadProbabilities: " << sp << " total:" << ret);
             }
         }
 
@@ -301,7 +298,20 @@ struct BestPairInfo
 
         std::sort(repeats_.begin(), repeats_.end());
 
-        repeats_.erase(std::unique(repeats_.begin(), repeats_.end()), repeats_.end());
+        std::vector<BamTemplate>::iterator repeatsBegin = std::unique(repeats_.begin(), repeats_.end());
+//        BOOST_FOREACH(const BamTemplate &repeat, std::make_pair(repeats_.begin(), repeatsBegin))
+//        {
+//            ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(repeats_.front().getFragmentMetadata(0).getCluster().getId(),
+//                                                   "removeRepeatDuplicates keeping: " << repeat);
+//        }
+//
+//        BOOST_FOREACH(const BamTemplate &repeat, std::make_pair(repeatsBegin, repeats_.end()))
+//        {
+//            ISAAC_THREAD_CERR_DEV_TRACE_CLUSTER_ID(repeats_.front().getFragmentMetadata(0).getCluster().getId(),
+//                                                   "removeRepeatDuplicates removing: " << repeat);
+//        }
+
+        repeats_.erase(repeatsBegin, repeats_.end());
         return repeats_.size();
     }
 
@@ -314,6 +324,16 @@ struct BestPairInfo
     {
         return !repeats_.empty() && repeats_.front().isKUnique();
     }
+
+    std::size_t repeatsCount() const {return repeats_.size();}
+
+    double probability() const {return info_.probability();}
+    double logProbability() const {return info_.logProbability_;}
+
+    const BamTemplate &repeat(std::size_t index) const {return repeats_.at(index);}
+
+    bool matchModel() const {return info_.matchModel_;}
+private:
     // potentially this needs to hold all the combinations of individual fragment alignments (TRACKED_REPEATS_MAX_ONE_READ * TRACKED_REPEATS_MAX_ONE_READ).
     // But repeat scattering hardly justifies to keeping this many equivalent pairs.
     typedef isaac::common::StaticVector<FragmentIterator, TRACKED_REPEATS_MAX_ONE_READ> FragmentIteratorVector;
@@ -338,6 +358,7 @@ struct BestPairInfo
         }
         return os << bestPairInfo.info_ << " " << bestPairInfo.bestPairMismatchCount() << "bem)";
     }
+
 };
 
 } // namespace templateBuilder

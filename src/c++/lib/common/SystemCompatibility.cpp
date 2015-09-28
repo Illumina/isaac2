@@ -159,9 +159,11 @@ namespace common
 
 int linuxFallocate(int fd, std::size_t offset, std::size_t len)
 {
-//    fallocate is not available on CentOS 5
-//    return fallocate(fd, FALLOC_FL_KEEP_SIZE, offset, len);
-    return posix_fallocate(fd, offset, len);
+    // FALLOC_FL_KEEP_SIZE is not available on CentOS 5
+#ifdef FALLOC_FL_KEEP_SIZE
+    return fallocate(fd, FALLOC_FL_KEEP_SIZE, offset, len);
+#endif //FALLOC_FL_KEEP_SIZE
+    return 0;
 }
 
 
@@ -351,106 +353,33 @@ public:
 
 bool ulimitV(unsigned long availableMemory)
 {
-    const std::string eventName = "Local\\iSAACForkResumeEvent";
-    HANDLE hWaitEvent = CreateEvent(NULL, FALSE, FALSE, eventName.c_str());
 
-    pid_t childPid = fork();
-    if (!childPid)
+    HANDLE hJobObject = CreateJobObject(NULL, NULL);
+    if (INVALID_HANDLE_VALUE == hJobObject)
     {
-        // Child needs to reopen event as otherwise the hWaitEvent is inaccessible
-        hWaitEvent = OpenEvent(EVENT_ALL_ACCESS, true, eventName.c_str());
-        if (INVALID_HANDLE_VALUE == hWaitEvent)
-        {
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to open fork sycnrhonization event handle")).str()));
-        }
-
-        DWORD dwWaitResult = WaitForSingleObject(hWaitEvent, INFINITE);
-        if (WAIT_OBJECT_0 != dwWaitResult)
-        {
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to WaitForSingleObject on fork sycnrhonization event. Wait result: 0x%x") % dwWaitResult).str()));
-        }
-        CloseHandle(hWaitEvent);
-        // Parent has finished attaching child to the job. Child is free to run...
-        return true;
+        BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to CreateJobObject")).str()));
     }
-    else
+
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION extendedLimits = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    extendedLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+    extendedLimits.ProcessMemoryLimit = availableMemory;
+    BOOL res = SetInformationJobObject(hJobObject, JobObjectExtendedLimitInformation, &extendedLimits, sizeof(extendedLimits));
+
+    if (!res)
     {
-        HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, childPid);
-        if (INVALID_HANDLE_VALUE == hProcess)
-        {
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to open child process handle for process id %x") % childPid).str()));
-        }
-
-        HANDLE hJobObject = CreateJobObject(NULL, NULL);
-        if (INVALID_HANDLE_VALUE == hJobObject)
-        {
-            CloseHandle(hProcess);
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to CreateJobObject")).str()));
-        }
-
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION extendedLimits = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-        extendedLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_JOB_MEMORY;
-        extendedLimits.JobMemoryLimit = availableMemory;
-        BOOL res = SetInformationJobObject(hJobObject, JobObjectExtendedLimitInformation, &extendedLimits, sizeof(extendedLimits));
-
-        if (!res)
-        {
-            CloseHandle(hJobObject);
-            CloseHandle(hProcess);
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to SetInformationJobObject")).str()));
-        }
-
-        res = AssignProcessToJobObject(hJobObject, hProcess);
-        if (!res)
-        {
-            CloseHandle(hJobObject);
-            CloseHandle(hProcess);
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("AssignProcessToJobObject failed")).str()));
-        }
-
-        CloseHandle (hJobObject);
-
-
-        if (!SetEvent(hWaitEvent))
-        {
-            CloseHandle(hProcess);
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("SetEvent on fork synchronizaqtion event failed")).str()));
-        }
-
-        if (WAIT_OBJECT_0 != WaitForSingleObject(hProcess, INFINITE))
-        {
-            CloseHandle(hProcess);
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed wile waiting for child process termination")).str()));
-        }
-
-        DWORD dwExitCode = 0;
-        if (!GetExitCodeProcess(hProcess, &dwExitCode))
-        {
-            CloseHandle(hProcess);
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to get child process exit code")).str()));
-        }
-
-        CloseHandle(hProcess);
-        if (dwExitCode)
-        {
-            CloseHandle(hWaitEvent);
-            BOOST_THROW_EXCEPTION(Win32Exception(NOERROR, (boost::format("Child process exited with non-zero exit code: 0x%x") % dwExitCode).str()));
-        }
-
-        CloseHandle(hWaitEvent);
-
-
-        // signal the caller that everything completed successfully and the parent process must exit now
-        return false;
+        CloseHandle(hJobObject);
+        BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("Failed to SetInformationJobObject")).str()));
     }
+    res = AssignProcessToJobObject(hJobObject, GetCurrentProcess());
+    if (!res)
+    {
+        CloseHandle(hJobObject);
+        BOOST_THROW_EXCEPTION(Win32Exception(GetLastError(), (boost::format("AssignProcessToJobObject failed")).str()));
+    }
+
+    CloseHandle(hJobObject);
+
+    return true;
 }
 
 bool ulimitV(unsigned long *pLimit)
