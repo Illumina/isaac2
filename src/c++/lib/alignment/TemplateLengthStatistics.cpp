@@ -272,13 +272,24 @@ void TemplateLengthDistribution::reset(const std::vector<reference::Contig> &con
 }
 
 
-FragmentMetadataList::const_iterator findUniquePerfectAlignment(
+inline FragmentMetadataList::const_iterator findUniqueOrUniquePerfectAlignment(
     const FragmentMetadataList &list)
 {
+    // if the alignment is unique, assume it is good enough.
+    if (1 == list.size())
+    {
+        return list.begin();
+    }
+
+    // if there are too many candidates, just skip it
     if (list.size() > 10)
     {
         return list.end();
     }
+
+    // if there are multiple candidates, only look at the perfect ones and only if the perfect ones are unique.
+    
+    // Notice that there is still a problem
 
     const FragmentMetadataList::const_iterator ret = std::find_if(list.begin(), list.end(), !boost::bind(&FragmentMetadata::getEditDistance, _1));
     if (list.end() == ret)
@@ -305,8 +316,8 @@ bool TemplateLengthDistribution::addTemplate(const std::vector<std::vector<Fragm
     }
     ++templateCount_;
     // discard templates where the alignment is not unique on both fragments
-    const FragmentMetadataList::const_iterator perfect0 = findUniquePerfectAlignment(fragments[0]);
-    const FragmentMetadataList::const_iterator perfect1 = findUniquePerfectAlignment(fragments[1]);
+    const FragmentMetadataList::const_iterator perfect0 = findUniqueOrUniquePerfectAlignment(fragments[0]);
+    const FragmentMetadataList::const_iterator perfect1 = findUniqueOrUniquePerfectAlignment(fragments[1]);
     if (fragments[0].end() == perfect0 || fragments[1].end() == perfect1)
     {
         return stats_.isStable();

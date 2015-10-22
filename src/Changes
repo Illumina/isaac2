@@ -1,3 +1,6 @@
+iSAAC-02.15.10.21
+* SAAC-873 templates shorter than read length don't get flagged as proper pairs since 15.01.30
+
 iSAAC-02.15.09.28
 * SAAC-858 configurable fastq Q0 base
 

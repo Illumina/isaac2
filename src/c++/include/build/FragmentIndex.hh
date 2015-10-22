@@ -35,11 +35,6 @@ static const unsigned long INSANELY_HIGH_NUMBER_OF_CLUSTERS_PER_TILE = 100000000
 
 struct FragmentIndex
 {
-    FragmentIndex() : dataOffset_(0), mateDataOffset_(0){}
-/*
-    FragmentIndex(const unsigned long dataOffset, const unsigned long mateDataOffset):
-        dataOffset_(dataOffset), mateDataOffset_(mateDataOffset){}
-*/
     FragmentIndex(reference::ReferencePosition fStrandPos):
         fStrandPos_(fStrandPos), dataOffset_(0), mateDataOffset_(0)
     {}
@@ -63,27 +58,14 @@ inline std::ostream &operator <<(std::ostream& os, const FragmentIndex& idx)
 //binary layout for non-paired fragment indexes
 struct SeFragmentIndex : public FragmentIndex
 {
-    SeFragmentIndex(){}
     SeFragmentIndex(reference::ReferencePosition fStrandPos):
         FragmentIndex(fStrandPos)
     {}
 };
 BOOST_STATIC_ASSERT(24 == sizeof(SeFragmentIndex));
 
-//binary layout for unaligned (not mapped) fragment indexes. Note that shadows of the pair are stored with \see {RStrandOrShadowFragmentIndex}
-struct NmFragmentIndex : public FragmentIndex
-{
-    NmFragmentIndex():
-        FragmentIndex(reference::ReferencePosition(reference::ReferencePosition::NoMatch))
-    {}
-};
-BOOST_STATIC_ASSERT(24 == sizeof(NmFragmentIndex));
-
-
 struct FragmentIndexMate
 {
-    FragmentIndexMate(){}
-
     FragmentIndexMate(const bool shadow,
                       const bool reverse,
                       const unsigned storageBin,
@@ -93,7 +75,6 @@ struct FragmentIndexMate
 
     union Info
     {
-        Info(): value_(0) {}
         Info(const bool shadow, const bool reverse, const unsigned storageBin) {
             fields_.shadow_ = shadow;
             fields_.reverse_ = reverse;
@@ -137,7 +118,6 @@ inline std::ostream &operator <<(std::ostream& os, const FragmentIndexMate& mate
 // base binary layout for an end of a pair
 struct PairEndIndex : public FragmentIndex
 {
-    PairEndIndex() {}
     PairEndIndex(reference::ReferencePosition fStrandPos,
                  const FragmentIndexMate &mate,
                  const unsigned long duplicateClusterRank):
@@ -162,7 +142,6 @@ inline std::ostream &operator <<(std::ostream& os, const PairEndIndex& idx)
 //binary layout for forward-strand fragment indexes
 struct FStrandFragmentIndex : public PairEndIndex
 {
-    FStrandFragmentIndex(){}
     FStrandFragmentIndex(reference::ReferencePosition fStrandPos,
                          const FragmentIndexMate &mate,
                          const unsigned long duplicateClusterRank):
@@ -187,7 +166,6 @@ struct RStrandOrShadowFragmentIndex : public PairEndIndex
 {
     io::FragmentIndexAnchor anchor_;
 
-    RStrandOrShadowFragmentIndex(){}
     RStrandOrShadowFragmentIndex(
         reference::ReferencePosition fStrandPos,
         io::FragmentIndexAnchor anchor,
