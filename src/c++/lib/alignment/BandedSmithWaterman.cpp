@@ -348,7 +348,7 @@ unsigned BandedSmithWaterman::align(
         //std::cerr << "   F: " << F[1] <<  F[0] << std::endl;
         //std::cerr << "tmp0: " << tmp0[1] << tmp0[0] << std::endl;
         //std::cerr << "tmp1: " << tmp1[1] << tmp1[0] << std::endl;
-        TG = _mm_max_epi16(_mm_packs_epi16(tmp2[0], tmp2[1]), TG); // 0, 1, or 2 for G, E or F
+        TG = _mm_max_epu8(_mm_packs_epi16(tmp2[0], tmp2[1]), TG); // 0, 1, or 2 for G, E or F
         // add the match/mismatch score
         // load the query base in all 8 values of the register
         __m128i Q = _mm_set1_epi8(*queryCurrent);

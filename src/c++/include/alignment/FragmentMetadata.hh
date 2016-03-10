@@ -632,7 +632,7 @@ typedef FragmentMetadataList::const_iterator FragmentIterator;
 inline std::ostream &operator<<(std::ostream &os, const FragmentMetadata &f)
 {
     os << "FragmentMetadata("
-              << f.getCluster().getId() << "id "
+              << (f.cluster ? f.getCluster().getId() : 0UL) << "id "
               << f.contigId << ":"
               << f.position << ", "
               << f.observedLength << "bp r"
@@ -652,9 +652,13 @@ inline std::ostream &operator<<(std::ostream &os, const FragmentMetadata &f)
               << f.firstAnchor_<< "fa "
               << f.lastAnchor_<< "la "
               << f.leftClipped() << "lc "
-              << f.rightClipped() << "rc "
-              << common::makeFastIoString(f.getCluster().nameBegin(), f.getCluster().nameEnd())
-              << ")";
+              << f.rightClipped() << "rc ";
+    if (f.cluster)
+    {
+        return os << common::makeFastIoString(f.getCluster().nameBegin(), f.getCluster().nameEnd())
+            << ")";
+    }
+    return os << ")";
 }
 
 

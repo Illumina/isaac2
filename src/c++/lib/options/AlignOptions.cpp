@@ -58,6 +58,9 @@ using boost::format;
 static const std::vector<std::string> SUPPORTED_BAM_EXCLUDE_TAGS =
     boost::assign::list_of("AS")("BC")("NM")("OC")("RG")("SM")("ZX")("ZY");
 
+#define BIN_8_QSCORE_MAP "0-1:0,2-9:7,10-19:11,20-24:22,25-29:27,30-34:32,35-39:37,40-63:40"
+
+
 
 /**
  * \brief Throws an exception in case of troubles,
@@ -170,7 +173,8 @@ AlignOptions::AlignOptions()
     , statsImageFormatString("gif")
     , statsImageFormat(reports::AlignmentReportGenerator::gif)
     , bufferBins(true)
-	, qScoreBin(false)
+    , qScoreBin(false)
+    , qScoreBinValueString("identity")
     , bamExcludeTags("ZX,ZY")
     , optionalFeatures(parseBamExcludeTags(bamExcludeTags))
     , pessimisticMapQ(false)
@@ -517,13 +521,10 @@ AlignOptions::AlignOptions()
                 "If set, MatchSelector will buffer bin data before writing it out. If not set, MatchSelector will keep an open "
                 "file handle per bin and write data into corresponding bins as it appears. This option requires extra RAM, but "
                 "improves performance on some file systems.")
-        ("qscore-bin"   , bpo::value<bool>(&qScoreBin)->default_value(qScoreBin),
-        	    "Toggle QScore binning, this will be applied to the data after it is loaded and before processing")
-        ("qscore-bin-values"   , bpo::value<std::string>(&qScoreBinValueString),
-                "Overwrite the default QScore binning values.  Default bins are 0:0,1:1,2-9:6,10-19:15,20-24:22,"
-        	    "25-29:27,30-34:33,35-39:37,40-63:40.  Identity bins 1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,10:10,"
-        	    "11:11,12:12,13:13,14:14,15:15,16:16,17:17,18:18,19:19,20:20,21:21,22:22,23:23,24:24,25:25,26:26,"
-        		"27:27,28:28,29:29,30:30,31:31,32:32,33:33,34:34,35:35,36:36,37:37,38:38,39:39,40:40,41:41")
+        ("remap-qscores"   , bpo::value<std::string>(&qScoreBinValueString),
+                "Replace the base calls qscores according to the rules provided."
+                "\n - identity   : No remapping. Original qscores are preserved"
+                "\n - bin:8      : Equilvalent of " BIN_8_QSCORE_MAP)
         ;
 }
 
@@ -1400,70 +1401,58 @@ void setScore(boost::array<char, 256> &table, const unsigned int idx, const unsi
 
 void AlignOptions::parseQScoreBinValues()
 {
-	// Check to make sure there are sane settings
-	if(!qScoreBin && qScoreBinValueString.size())
-		BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** QScore bin set to off but bin values supplied, remove bin values ***\n"));
+    // First initialize to default bins
+    const int MAXSCORE = 63;
+    qScoreBin = !qScoreBinValueString.empty() && "identity" != qScoreBinValueString;
+    if ("bin:8" == qScoreBinValueString)
+    {
+        qScoreBinValueString = BIN_8_QSCORE_MAP;
+    }
 
-	// First initialize to default bins
-	const int MAXSCORE = 63;
-	for(int s = 0; s < MAXSCORE+1; ++s)
-	{
-		setScore(fullBclQScoreTable, s,
-			(0 == s) ? 0 :
-			(1 == s) ? 1 :
-			(10 > s) ? 6 :
-			(20 > s) ? 15:
-			(25 > s) ? 22:
-			(30 > s) ? 27:
-			(35 > s) ? 33:
-			(40 > s) ? 37:
-			40);
-	}
+    if (qScoreBin)
+    {
+        // Validate user input
+        const std::string validQScoreRegexStr =  "^(?:(?:(\\d+)-(\\d+)):(\\d+),|(\\d+):(\\d+),)*(?:(?:(\\d+)-(\\d+)):(\\d+)|(\\d+):(\\d+))$";
+        const boost::regex validQScoreRegex(validQScoreRegexStr);
+        boost::smatch what;
+        if(!boost::regex_match(qScoreBinValueString, what, validQScoreRegex))
+        {
+            BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error validating qscore bin ranges " + qScoreBinValueString + " ***\n"));
+        }
 
-	// Now that full table is created just return if there is nothing to do
-	if(qScoreBinValueString.empty()) return;
+        // Parse user input
+        const std::string binStr = "(?:(\\d+)-(\\d+)|(\\d+)):(\\d+)";
+        // For each match in qScoreBinValueString
+        BOOST_FOREACH(const boost::match_results<std::string::const_iterator> &what,
+            boost::make_iterator_range(boost::sregex_iterator(qScoreBinValueString.begin(),qScoreBinValueString.end(),boost::regex(binStr)),boost::sregex_iterator()))
+        {
+            if(what.size() != 5)
+                BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore regex parsing " + what.str() + ", capture size incorrect ***\n"));
 
-	// Validate user input
-	const std::string validQScoreRegexStr =  "^(?:(?:(\\d+)-(\\d+)):(\\d+),|(\\d+):(\\d+),)*(?:(?:(\\d+)-(\\d+)):(\\d+)|(\\d+):(\\d+))$";
-	const boost::regex validQScoreRegex(validQScoreRegexStr);
-	boost::smatch what;
-	if(!boost::regex_match(qScoreBinValueString, what, validQScoreRegex))
-	{
-		BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error validating qscore bin ranges " + qScoreBinValueString + " ***\n"));
-	}
+            // Get ranges and bin score
+            const int rangea = boost::lexical_cast<int>( (what[1].second != what[1].first) ?
+                std::string(what[1].first, what[1].second) :
+                std::string(what[3].first, what[3].second) );
+            const int rangeb =  (what[2].second != what[2].first) ?
+                boost::lexical_cast<int>(std::string(what[2].first, what[2].second)) :
+                rangea;
+            const int binScore = boost::lexical_cast<int>(std::string(what[4].first, what[4].second));
 
-	// Parse user input
-	const std::string binStr = "(?:(\\d+)-(\\d+)|(\\d+)):(\\d+)";
-	// For each match in qScoreBinValueString
-	BOOST_FOREACH(const boost::match_results<std::string::const_iterator> &what,
-		boost::make_iterator_range(boost::sregex_iterator(qScoreBinValueString.begin(),qScoreBinValueString.end(),boost::regex(binStr)),boost::sregex_iterator()))
-	{
-		if(what.size() != 5)
-			BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore regex parsing " + what.str() + ", capture size incorrect ***\n"));
+            // Make sure range and bin score are in acceptable range
+            if(rangea > MAXSCORE || rangea < 0)
+                BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore bin start range " + boost::lexical_cast<std::string>(rangea) + ", must be 0-63 ***\n"));
+            if(rangeb > MAXSCORE || rangea < 0)
+                BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore bin end range " + boost::lexical_cast<std::string>(rangeb) + ", must be 0-63 ***\n"));
+            if(binScore > MAXSCORE || rangea < 0)
+                BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore bin score " + boost::lexical_cast<std::string>(binScore) + ", must be 0-63 ***\n"));
 
-		// Get ranges and bin score
-		const int rangea = boost::lexical_cast<int>( (what[1].second != what[1].first) ?
-			std::string(what[1].first, what[1].second) :
-			std::string(what[3].first, what[3].second) );
-		const int rangeb =  (what[2].second != what[2].first) ?
-			boost::lexical_cast<int>(std::string(what[2].first, what[2].second)) :
-			rangea;
-		const int binScore = boost::lexical_cast<int>(std::string(what[4].first, what[4].second));
-
-		// Make sure range and bin score are in acceptable range
-		if(rangea > MAXSCORE || rangea < 0)
-			BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore bin start range " + boost::lexical_cast<std::string>(rangea) + ", must be 0-63 ***\n"));
-		if(rangeb > MAXSCORE || rangea < 0)
-			BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore bin end range " + boost::lexical_cast<std::string>(rangeb) + ", must be 0-63 ***\n"));
-		if(binScore > MAXSCORE || rangea < 0)
-			BOOST_THROW_EXCEPTION(InvalidOptionException("\n   *** Error with qScore bin score " + boost::lexical_cast<std::string>(binScore) + ", must be 0-63 ***\n"));
-
-		// Set range in table
-		for(int i = rangea; i <= rangeb; ++i)
-		{
-			setScore(fullBclQScoreTable, i, binScore);
-		}
-	}
+            // Set range in table
+            for(int i = rangea; i <= rangeb; ++i)
+            {
+                setScore(fullBclQScoreTable, i, binScore);
+            }
+        }
+    }
 }
 
 

@@ -149,11 +149,16 @@ public:
     {
         threads_.execute(boost::bind(&ParallelBgzfReader::initializeReaderThread, this, _1));
     }
+
+    // this set of functions uses internal stream. Take care of not calling them if you are maintaining stream externally
     void open(const boost::filesystem::path &bamPath);
     bool readMoreData(std::vector<char> &buffer);
     std::size_t readMoreData(char *buffer, const std::size_t capacity);
+    bool isEof() {return isEof(is_);}
+
+    // this set of functions to be used for clients that own their streams
     std::size_t readMoreData(std::istream &is, char *buffer, const std::size_t capacity);
-    bool isEof() {return is_.eof();}
+    bool isEof(std::istream &is) {return !pendingBlockSize_ && is.eof();}
 private:
     void readMoreDataParallel(const unsigned threadNumber, std::istream &is, char *buffer, std::size_t bufferMax, std::size_t &decompressed);
 

@@ -60,6 +60,7 @@ unsigned BgzfReader::readNextBlock(std::istream &is)
         is.read(&compressedBlockBuffer_.front() + compressedBlockBuffer_.size() - sizeof(bgzf::Header), sizeof(bgzf::Header));
         if (is.eof())
         {
+            ISAAC_ASSERT_MSG(!is.gcount(), "BgzfReader::readNextBlock EOF while reading bgzf header");
             break;
         }
         if (!is)
@@ -118,26 +119,17 @@ void BgzfReader::uncompressCurrentBlock(char* p, std::size_t size)
 {
     strm_.next_in = reinterpret_cast<Bytef *>(&compressedBlockBuffer_.front());
     strm_.avail_in = compressedBlockBuffer_.size();
-    while (size)
+    strm_.next_out = reinterpret_cast<Bytef *>(p);
+    strm_.avail_out = size;
+    while (strm_.avail_out)
     {
         reset();
-        strm_.next_out = reinterpret_cast<Bytef *>(p);
-        strm_.avail_out = size;
 
-        int err = inflate(&strm_, Z_SYNC_FLUSH);
+        const int err = inflate(&strm_, Z_SYNC_FLUSH);
         if (Z_OK != err && Z_STREAM_END != err)
         {
             BOOST_THROW_EXCEPTION(BgzfInflateException(err, strm_));
         }
-        const std::size_t decompressedBytes = size - strm_.avail_out;
-
-//        if (decompressedBytes != size)
-//        {
-//            BOOST_THROW_EXCEPTION(common::IoException(EINVAL, (boost::format("Unexpected number of BGZF bytes uncompressed. "
-//                "Expected %d, uncompressed %d") % size % decompressedBytes).str()));
-//        }
-        size -= decompressedBytes;
-        p+= decompressedBytes;
     }
 }
 
@@ -242,7 +234,7 @@ void ParallelBgzfReader::readMoreDataParallel(const unsigned threadNumber, std::
                 {
                     ISAAC_THREAD_CERR << "Thread " << threadNumber << " reached eof" << std::endl;
                 }
-//                ISAAC_THREAD_CERR << "Thread " << threadNumber << " read " << ourThreadBlockSize << " bytes" << std::endl;
+//                ISAAC_THREAD_CERR << "Thread " << threadNumber << " will produce " << ourThreadBlockSize << " uncompressed bytes" << std::endl;
                 ourThreadOffset = nextUncompressedOffset_;
                 nextUncompressedOffset_ += ourThreadBlockSize;
 
@@ -263,7 +255,7 @@ void ParallelBgzfReader::readMoreDataParallel(const unsigned threadNumber, std::
             {
 //                ISAAC_THREAD_CERR << "Thread " << threadNumber <<
 //                    " nextUncompressedOffset_ " << nextUncompressedOffset_ <<
-//                    " buffer.capacity()" << buffer.capacity() << std::endl;
+//                    " buffer.capacity()" << bufferMax << std::endl;
                 break;
             }
         }
@@ -288,13 +280,15 @@ std::size_t ParallelBgzfReader::readMoreData(char *buffer, const std::size_t cap
 
 std::size_t ParallelBgzfReader::readMoreData(std::istream &is, char *buffer, const std::size_t capacity)
 {
-    std::vector<unsigned long>::iterator pendingBlockOffsetIt =
-        std::find(threadOffsets_.begin(), threadOffsets_.end(), 0UL);
+    std::vector<uint64_t>::iterator pendingBlockOffsetIt = std::find(threadOffsets_.begin(), threadOffsets_.end(), 0UL);
     if (threadOffsets_.end() != pendingBlockOffsetIt)
     {
-        // preserve existing buffer.size() as there is some data the client wants to merge with what we're about
-        // to decompress
-        *pendingBlockOffsetIt = 0;
+//        ISAAC_THREAD_CERR << "Pending block of size " << pendingBlockSize_ << " found" << std::endl;
+        ISAAC_ASSERT_MSG(pendingBlockSize_, "Pending block of size 0 found");
+    }
+    else
+    {
+        ISAAC_ASSERT_MSG(!pendingBlockSize_, "Pending block of size " << pendingBlockSize_ << " found while no thread is ready to deal with it");
     }
     nextUncompressedOffset_ = pendingBlockSize_;
     pendingBlockSize_ = 0;
@@ -302,11 +296,15 @@ std::size_t ParallelBgzfReader::readMoreData(std::istream &is, char *buffer, con
 
     threads_.execute(boost::bind(&ParallelBgzfReader::readMoreDataParallel, this, _1,
                                  boost::ref(is), buffer, capacity, boost::ref(newSize)), coresMax_);
+
     if (threadOffsets_.end() != pendingBlockOffsetIt && !newSize)
     {
         BOOST_THROW_EXCEPTION(common::IoException(errno, (boost::format("Insufficient buffer capacity to uncompress even one bgzf block. pending %d, capacity: %d") %
             pendingBlockSize_ % capacity).str()));
     }
+
+//    ISAAC_THREAD_CERR << "ParallelBgzfReader::readMoreData newSize:" << newSize << " pendingBlockSize_:" << pendingBlockSize_ << std::endl;
+
     return newSize;
 }
 

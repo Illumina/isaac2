@@ -25,14 +25,15 @@
 class TestTemplateLengthStatistics : public CppUnit::TestFixture
 {
     CPPUNIT_TEST_SUITE( TestTemplateLengthStatistics );
-    CPPUNIT_TEST( testAlignmentModels );
-    CPPUNIT_TEST( testAlignmentClassNames );
-    CPPUNIT_TEST( testStatistics );
-    CPPUNIT_TEST( testMateDriftRange );
-    CPPUNIT_TEST( testNoMateDriftRange );
-    CPPUNIT_TEST( testMateOrientation );
-    CPPUNIT_TEST( testMateMinPosition );
-    CPPUNIT_TEST( testMateMaxPosition );
+//    CPPUNIT_TEST( testAlignmentModels );
+//    CPPUNIT_TEST( testAlignmentClassNames );
+//    CPPUNIT_TEST( testStatistics );
+//    CPPUNIT_TEST( testMateDriftRange );
+//    CPPUNIT_TEST( testNoMateDriftRange );
+//    CPPUNIT_TEST( testMateOrientation );
+//    CPPUNIT_TEST( testMateMinPosition );
+//    CPPUNIT_TEST( testMateMaxPosition );
+    CPPUNIT_TEST( testAll );
     CPPUNIT_TEST_SUITE_END();
 private:
     void addTemplates(isaac::alignment::TemplateLengthDistribution & tls);
@@ -40,6 +41,17 @@ public:
     TestTemplateLengthStatistics();
     void setUp();
     void tearDown();
+    void testAll()
+    {
+        testAlignmentModels();
+        testAlignmentClassNames();
+        testMateOrientation();
+        testMateMinPosition();
+        testMateMaxPosition();
+        testStatistics();
+        testMateDriftRange();
+        testNoMateDriftRange();
+    }
     void testAlignmentModels();
     void testAlignmentClassNames();
     void testMateOrientation();

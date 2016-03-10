@@ -430,7 +430,7 @@ void AlignWorkflow::selectMatches(
     if (!bufferBins_)
     {
         alignment::matchSelector::BinningFragmentStorage fragmentStorage(
-            keepUnaligned_, tempSaversMax_,
+            keepUnaligned_,
             binIndexMap, binMetadataList,
             flowcell::getMaxTileClusters(foundMatchesMetadata_.tileMetadataList_),
             preAllocateBins_ ? expectedBinSize : 0);

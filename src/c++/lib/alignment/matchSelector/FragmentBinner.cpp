@@ -58,7 +58,7 @@ void FragmentBinner::storeFragment(
     const bool splitRead,
     BinMetadata &binMetadata)
 {
-    ISAAC_ASSERT_MSG(fragment.flags_.initialized_, "Outch!" << fragment);
+    ISAAC_ASSERT_MSG(fragment.flags_.initialized_, "Attempt to store an uninitialized " << fragment);
     if (!fragment.isAligned() && !fragment.isMateAligned())
     {
         // Bin 0 gets split during bam generation. It is important bin 0 chunks reflect distribution in the order

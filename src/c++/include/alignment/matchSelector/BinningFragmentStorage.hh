@@ -48,7 +48,6 @@ class BinningFragmentStorage: FragmentPacker, FragmentBinner, public FragmentSto
 public:
     BinningFragmentStorage(
         const bool keepUnaligned,
-        const unsigned maxSavers,
         const BinIndexMap &binIndexMap,
         const alignment::BinMetadataList &binMetadataList,
         const unsigned long maxTileClusters,

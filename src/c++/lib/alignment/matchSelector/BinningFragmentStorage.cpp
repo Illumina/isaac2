@@ -34,12 +34,11 @@ namespace matchSelector
 
 BinningFragmentStorage::BinningFragmentStorage(
     const bool keepUnaligned,
-    const unsigned maxSavers,
     const BinIndexMap &binIndexMap,
     const alignment::BinMetadataList &binPathList,
     const unsigned long maxTileClusters,
     const unsigned long expectedBinSize):
-        FragmentBinner(keepUnaligned, maxSavers, binIndexMap, binPathList, maxTileClusters, expectedBinSize),
+        FragmentBinner(keepUnaligned, binIndexMap.getTotalBins(), binIndexMap, binPathList, maxTileClusters, expectedBinSize),
         binIndexMap_(binIndexMap)
 {
 }

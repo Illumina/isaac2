@@ -274,11 +274,12 @@ void NeighborsFinder<KmerT, AnnotatorT>::reorderKmers(
     const std::size_t blockLength = ((kmerList.size() + threads_.size() - 1) / threads_.size());
     if (kmerList.size() > blockLength * threadNum)
     {
-        typename KmerList ::iterator begin = kmerList.begin() + blockLength * threadNum;
-        typename KmerList ::iterator end = std::size_t(std::distance(begin, kmerList.end())) < blockLength ?
+        typename KmerList::iterator begin = kmerList.begin() + blockLength * threadNum;
+        typename KmerList::iterator end = std::size_t(std::distance(begin, kmerList.end())) < blockLength ?
             kmerList.end() : begin + blockLength;
-        BOOST_FOREACH(AnnotatedKmer &ak, std::make_pair(begin, end))
+        for(typename KmerList::iterator it = begin; end != it; ++it)
         {
+            AnnotatedKmer &ak = *it;
             ak.kmer_ = permutate.reorder(ak.kmer_);
         }
     }
@@ -291,11 +292,12 @@ void NeighborsFinder<KmerT, AnnotatorT>::permutateKmers(
     const std::size_t blockLength = ((kmerList.size() + threads_.size() - 1) / threads_.size());
     if (kmerList.size() > blockLength * threadNum)
     {
-        typename KmerList ::iterator begin = kmerList.begin() + blockLength * threadNum;
-        typename KmerList ::iterator end = std::size_t(std::distance(begin, kmerList.end())) < blockLength ?
+        typename KmerList::iterator begin = kmerList.begin() + blockLength * threadNum;
+        typename KmerList::iterator end = std::size_t(std::distance(begin, kmerList.end())) < blockLength ?
             kmerList.end() : begin + blockLength;
-        BOOST_FOREACH(AnnotatedKmer &ak, std::make_pair(begin, end))
+        for(typename KmerList::iterator it = begin; end != it; ++it)
         {
+            AnnotatedKmer &ak = *it;
             ak.kmer_ = permutate(ak.kmer_);
         }
     }

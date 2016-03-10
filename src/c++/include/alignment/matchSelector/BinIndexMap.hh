@@ -160,6 +160,11 @@ public:
         return back().back();
     }
 
+    unsigned getTotalBins() const
+    {
+        return getHighestBinIndex() + 1;
+    }
+
 };
 
 

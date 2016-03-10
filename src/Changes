@@ -1,3 +1,24 @@
+iSAAC-02.16.03.09
+* SAAC-914 SSE2 Smith-Waterman uses wrong intrinsic to compare strings of bytes
+
+iSAAC-02.16.02.19
+* SAAC-909 Mismatching number of clusters read for r1/r2 from bgzf-compressed fastq when zcat|wc -l shows number of reads match
+
+iSAAC-02.16.01.19
+* SAAC-904 CIGAR buffer too small causes crash on high coverage of shorter than read length templates
+
+iSAAC-02.16.01.14
+* SAAC-901 Months start with January being 0 in log output
+
+iSAAC-02.15.11.11
+* SAAC-884 change --qscore-bin --and qscore-bin-values into single option -remap-qscores
+
+iSAAC-02.15.11.02
+* SAAC-877 segfault in findNeighbors due to compiler optimizations
+
+iSAAC-02.15.10.30
+* SAAC-875 segfaults with --buffer-bins no when --temp-concurrent-save is smaller than number of bins
+
 iSAAC-02.15.10.21
 * SAAC-873 templates shorter than read length don't get flagged as proper pairs since 15.01.30
 

@@ -90,7 +90,7 @@ TemplateBuilder::TemplateBuilder(
     , bamTemplate_()
     , shadowAligner_(flowcellLayoutList,
                      gappedMismatchesMax, smitWatermanGapsMax, smartSmithWaterman, noSmithWaterman, alignmentCfg_)
-    , cigarBuffer_(10000)
+    , cigarBuffer_(1000000)
     , shadowList_(templateBuilder::TRACKED_REPEATS_MAX_ONE_READ)
     , bestCombinationPairInfo_(repeatThreshold, maxSeedsPerRead)
     , bestRescuedPair_(repeatThreshold, maxSeedsPerRead)

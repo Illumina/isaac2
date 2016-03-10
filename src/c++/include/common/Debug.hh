@@ -127,7 +127,7 @@ inline std::ostream & operator << (std::ostream &os, const ThreadTimestamp &) {
     curr_ptr = boost::date_time::c_time::localtime(&t, &curr);
 
     os << (curr_ptr->tm_year + 1900) << '-' <<
-        std::setfill('0') << std::setw(2) << curr_ptr->tm_mon << '-'  <<
+        std::setfill('0') << std::setw(2) << (curr_ptr->tm_mon + 1) << '-'  <<
         std::setfill('0') << std::setw(2) << curr_ptr->tm_mday << ' '  <<
 
         std::setfill('0') << std::setw(2) << curr_ptr->tm_hour << ':' <<

@@ -74,7 +74,11 @@ void FastqReader::open(
         fastqPath_ = fastqPath.c_str();
         q0Base_ = q0Base;
         compressed_ = common::isDotGzPath(fastqPath_);
-        fileBuffer_.reopen(fastqPath_.c_str(), FileBufWithReopen::SequentialOnce);
+        if (!fileBuffer_.reopen(fastqPath_.c_str(), FileBufWithReopen::SequentialOnce))
+        {
+            BOOST_THROW_EXCEPTION(common::IoException(errno, (boost::format("Failed to reopen fastq file %s : %s") %
+                fastqPath_ % strerror(errno)).str()));
+        }
         buffer_.resize(uncompressedBufferSize_);
         gzReader_.reset();
         filePos_ = 0;
@@ -320,7 +324,7 @@ std::size_t FastqReader::readCompressedFastq(std::istream &is, char *buffer, std
 std::size_t FastqReader::readBgzfFastq(std::istream &is, char *buffer, std::size_t amount)
 {
     const std::size_t ret = bgzfReader_.readMoreData(is, buffer, amount);
-    reachedEof_ = is.eof();
+    reachedEof_ = bgzfReader_.isEof(is);
     return ret;
 }
 
