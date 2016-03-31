@@ -118,12 +118,12 @@ AlignOptions::AlignOptions()
     , keepUnalignedString("back")
     , keepUnaligned(false)
     , preSortBins(true) // on genomes with decent number of contigs this speeds up bam generation by increasing memory locality
-                        // of the loaded fragments. However, on metagenmoics references this causes enormous amount of entries
+                        // of the loaded fragments. However, on metagenomics references this causes enormous amount of entries
                         // in bin metadata data distribution
     , preAllocateBins(false) //off by default as on genomes with large number of tiny contigs (such as hg38) it happens to consume terabytes of temp disk space
     , putUnalignedInTheBack(false)
     , realignGapsVigorously(false)
-    , realignDodgyFragments(false) // true slows down pileups on DNA but seems to clear up picture significantly in RNA
+    , realignDodgyFragments(false) // true slows down pile-ups on DNA but seems to clear up picture significantly in RNA
     , realignedGapsPerFragment(2)
     , clipSemialigned(false) // Note that GATK jumps to 9000 conflict from 5000 if clipSemialigned is off
     , clipOverlapping(true)
@@ -324,7 +324,7 @@ AlignOptions::AlignOptions()
         ("jobs,j"                   , bpo::value<unsigned int>(&jobs)->default_value(jobs),
                 "Maximum number of compute threads to run in parallel")
         ("seed-base-quality-min"                   , bpo::value<unsigned int>(&seedBaseQualityMin)->default_value(seedBaseQualityMin),
-                "Miminum base quality for the seed to be used in alignment candidate search.")
+                "Minimum base quality for the seed to be used in alignment candidate search.")
         ("input-concurrent-load"            , bpo::value<unsigned>(&inputLoadersMax)->default_value(inputLoadersMax),
                 "Maximum number of concurrent file read operations for --base-calls")
         ("temp-concurrent-load"            , bpo::value<unsigned>(&tempLoadersMax)->default_value(tempLoadersMax),

@@ -59,6 +59,7 @@ Configuration:
   --without-numa              Prevent linking against libnuma library.
   --with-unit-tests           allow unit testing during the build
   --without-unit-tests        prevent unit testing during the build (default)
+  --with-avx2                 use avx2 instructions for vectorization
 
 Directory and file names:
   --prefix=PREFIX         install files in tree rooted at PREFIX
@@ -208,6 +209,8 @@ for a in "$@"; do
         CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_UNIT_TESTS=TRUE"
     elif echo $a | grep "^--without-unit-tests" > /dev/null 2> /dev/null; then
         CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_UNIT_TESTS=FALSE"
+    elif echo $a | grep "^--with-avx2" > /dev/null 2> /dev/null; then
+        CMAKE_OPTIONS="$CMAKE_OPTIONS -DiSAAC_AVX2=TRUE"
     elif echo $a | grep "^--verbose" > /dev/null 2> /dev/null; then
         CMAKE_OPTIONS="$CMAKE_OPTIONS -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DBoost_DEBUG:BOOL=ON"
         isaac_verbose=TRUE

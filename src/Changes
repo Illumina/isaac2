@@ -1,3 +1,7 @@
+iSAAC-02.16.03.29
+* SAAC-920 AVX2 intrinsics for BandedSmithWaterman
+* SAAC-916 Fix command-line option descriptions
+
 iSAAC-02.16.03.09
 * SAAC-914 SSE2 Smith-Waterman uses wrong intrinsic to compare strings of bytes
 

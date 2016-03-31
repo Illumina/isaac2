@@ -21,10 +21,14 @@
 #define iSAAC_ALIGNMENT_BANDED_SMITH_WATERMAN_HH
 
 #include <string>
-
+#ifndef __AVX2__
+#include <xmmintrin.h>
+#include <immintrin.h>
+#endif
 #include <boost/noncopyable.hpp>
 
 #include "alignment/Cigar.hh"
+#include "reference/Contig.hh"
 
 namespace isaac
 {
@@ -105,6 +109,30 @@ private:
 
     unsigned trimTailIndels(Cigar& cigar, const size_t beginOffset) const;
     void removeAdjacentIndels(Cigar& cigar, const size_t beginOffset) const;
+#if __AVX2__
+    inline void max2_(
+        __m256i G,
+        __m256i F,
+        int gapExtendScore,
+        __m256i *output,
+        __m256i *outputType,
+        int initialValue) const;
+    inline void max3_(
+       __m256i E,
+       __m256i G,
+       __m256i F,
+       __m256i gapOpen,
+       __m256i gapExtend,
+       __m256i *output,
+       __m256i *outputType,
+       int initialValue) const;
+    void max3_(
+       __m256i E,
+       __m256i G,
+       __m256i F,
+       __m256i *output,
+       __m256i *outputType) const;
+#endif
 };  
 
 } // namespace alignment

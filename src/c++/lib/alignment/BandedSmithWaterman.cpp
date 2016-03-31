@@ -22,8 +22,9 @@
 #include <cstdlib>
 #include <algorithm>
 #include <xmmintrin.h> 
-//#include <smmintrin.h> // sse4 instructions for _mm_insert_epi8
-
+#if __AVX2__
+#include <immintrin.h>
+#endif
 #include <boost/format.hpp>
 
 #include "alignment/BandedSmithWaterman.hh"
@@ -42,7 +43,11 @@ BandedSmithWaterman::BandedSmithWaterman(const int matchScore, const int mismatc
     , gapExtendScore_(gapExtendScore)
     , maxReadLength_(maxReadLength)
     , initialValue_(static_cast<int>(std::numeric_limits<short>::min()) + gapOpenScore_)
-    , T_((char *)_mm_malloc (maxReadLength_ * 3 *sizeof(__m128i), 16))
+#if __AVX2__
+    , T_((char *)_mm_malloc (maxReadLength_ * 3 * sizeof(__m256i), 32))
+#else
+    , T_((char *)_mm_malloc (maxReadLength_ * 3 * sizeof(__m128i), 16))
+#endif
 {
     // check that there won't be any overflows in the matrices
     const int maxScore = std::max(std::max(std::max(abs(matchScore_), abs(mismatchScore_)), abs(gapOpenScore_)), abs(gapExtendScore_));
@@ -71,6 +76,90 @@ std::string epi8(__m128i v);
 std::string epi8s(__m128i v);
 std::string epi8c(__m128i v);
 std::ostream &operator<<(std::ostream &os, const __m128i &H);
+
+#if __AVX2__
+inline void BandedSmithWaterman::max3_(__m256i E, __m256i G, __m256i F, __m256i *output, __m256i *outputType) const {
+    __m256i cmpgtEg = _mm256_cmpgt_epi16(E, G);
+    __m256i cmpgtEgMask = _mm256_srli_epi16(cmpgtEg, 15);
+
+    __m256i maxEg = _mm256_max_epi16(G, E);
+
+    __m256i cmpgtGf = _mm256_cmpgt_epi16(F, maxEg);
+    __m256i cmpgtGfMask =_mm256_and_si256(cmpgtGf, _mm256_set1_epi16(2));
+
+    __m256i maxGf = _mm256_max_epi16(maxEg, F);
+
+    __m256i maxEgf = _mm256_max_epi16(cmpgtEgMask, cmpgtGfMask);
+ 
+    _mm256_store_si256(outputType, maxEgf);
+    _mm256_store_si256(output, maxGf);
+}
+  
+inline void BandedSmithWaterman::max3_(__m256i E, __m256i G, __m256i F, __m256i gapOpen, __m256i gapExtend, __m256i *output, __m256i *outputType, int initialValue) const {
+    __m256i cmpgtEg = _mm256_cmpgt_epi16(E, G);
+    __m256i cmpgtEgMask = _mm256_and_si256(cmpgtEg, _mm256_set1_epi16(1));
+
+    __m256i maxEg = _mm256_max_epi16(G, E);
+    __m256i maxEgSubGapOpen = _mm256_sub_epi16(maxEg, gapOpen);
+
+    __m256i cmpgtGf = _mm256_cmpgt_epi16(F, maxEgSubGapOpen);
+    __m256i cmpgtGfMask =_mm256_and_si256(cmpgtGf, _mm256_set1_epi16(2));
+
+    __m256i maxGf = _mm256_max_epi16(maxEgSubGapOpen, F);
+    __m256i maxGfReset = _mm256_insert_epi16(maxGf, initialValue, 0);
+
+    __m256i maxEgf = _mm256_max_epi16(cmpgtEgMask, cmpgtGfMask);
+    __m256i maxEgfReset = _mm256_insert_epi16(maxEgf, 0, 0);
+
+    _mm256_store_si256(outputType, maxEgfReset);
+    _mm256_store_si256(output, maxGfReset);
+}
+
+inline void BandedSmithWaterman::max2_(__m256i G, __m256i F, int gapExtendScore, __m256i *output, __m256i *outputType, int initialValue) const {
+    __m256i cmpgtFg = _mm256_cmpgt_epi16(F, G);
+    __m256i cmpgtFgMask = _mm256_srli_epi16(cmpgtFg, 15);
+    cmpgtFgMask = _mm256_slli_epi16(cmpgtFgMask, 1);
+
+    __m256i cmpgtFgMaskSr = _mm256_alignr_epi8(_mm256_permute2x128_si256(cmpgtFgMask, cmpgtFgMask, _MM_SHUFFLE(2, 0, 0, 1)), cmpgtFgMask, 2);
+
+    __m256i maxFg = _mm256_max_epi16(F, G);
+    __m256i maxFgSr = _mm256_alignr_epi8(_mm256_permute2x128_si256(maxFg, maxFg, _MM_SHUFFLE(2, 0, 0, 1)), maxFg, 2);
+    __m256i maxFgSrReset = _mm256_insert_epi16(maxFgSr, initialValue, 15);
+
+    int16_t maxFgS[WIDEST_GAP_SIZE];
+    int16_t maxFgSueFgS[WIDEST_GAP_SIZE];
+    _mm256_store_si256((__m256i *) maxFgS, maxFg);
+
+    short e = initialValue;
+    short fg = initialValue;
+
+    for (unsigned int j = WIDEST_GAP_SIZE; j > 0; --j)
+    {
+        short max = fg;
+        if (e - gapExtendScore > fg)
+        {
+            max = e - gapExtendScore;
+        }
+
+        maxFgSueFgS[j - 1] = max;
+        fg = maxFgS[j - 1];
+    
+        e = max;
+    }
+
+    __m256i maxFgSueFg = _mm256_load_si256((__m256i *) maxFgSueFgS);
+
+    __m256i cmpgtFgSueFg = _mm256_cmpgt_epi16(maxFgSueFg, maxFgSrReset);
+    __m256i cmpgtFgSueFgMask = _mm256_and_si256(cmpgtFgSueFg, _mm256_set1_epi16(5));
+
+    maxFgSueFg = _mm256_max_epi16(maxFgSueFg, maxFgSrReset);
+    __m256i cmpgtMerge = _mm256_and_si256(_mm256_max_epi16(cmpgtFgSueFgMask, cmpgtFgMaskSr), _mm256_set1_epi16(3));
+
+    _mm256_store_si256(outputType, cmpgtMerge);
+    _mm256_store_si256(output, maxFgSueFg);
+}
+
+#endif
 
 unsigned BandedSmithWaterman::align(
     const std::vector<char> &query,
@@ -247,14 +336,25 @@ unsigned BandedSmithWaterman::align(
     ISAAC_ASSERT_MSG(querySize + WIDEST_GAP_SIZE - 1 == (unsigned long)(databaseEnd - databaseBegin), "q:" << std::string(queryBegin, queryEnd) << " db:" << std::string(databaseBegin, databaseEnd));
     assert(querySize <= size_t(maxReadLength_));
     const size_t originalCigarSize = cigar.size();
-    //std::cerr << matchScore_ << " " << mismatchScore_ << " " << gapOpenScore_ << " " << gapExtendScore_  << std::endl;
-    //std::cerr << "   " << query << std::endl;
-    //std::cerr << database << std::endl;
-    //__m128i *nextH = allH_;
-    //allH_.clear();
-    //allH_.reserve(query.length());
-    //const __m128i GapOpenScore = _mm_insert_epi16(_mm_set1_epi16(gapOpenScore_), 0, 0);
-    //const __m128i GapExtendScore = _mm_insert_epi16(_mm_set1_epi16(gapExtendScore_), 0, 0);
+#if __AVX2__
+    __m256i *t = (__m256i *)T_;
+    const __m256i GapOpenScore = _mm256_set1_epi16(gapOpenScore_);
+    const __m256i GapExtendScore = _mm256_set1_epi16(gapExtendScore_);
+    const __m256i ONE = _mm256_set1_epi16(0xFF);
+    // Initialize E, F and G
+    __m256i E, F, G;
+    E = _mm256_set1_epi16(initialValue_);
+    F = _mm256_set1_epi16(0); // Should this be -10000?
+    G = _mm256_set1_epi16(initialValue_);
+    G = _mm256_insert_epi16(G, 0, 0);
+    // initialize D -- Note that we must leave the leftmost position empty (else it will be discarded before use)
+    __m256i D = _mm256_setzero_si256();
+    int16_t dbBuffer[WIDEST_GAP_SIZE];
+    std::reverse_copy(databaseBegin, databaseBegin + WIDEST_GAP_SIZE - 1, dbBuffer);
+    dbBuffer[WIDEST_GAP_SIZE - 1] = dbBuffer[0];
+    D = _mm256_load_si256((__m256i *)&dbBuffer);
+#else
+
     __m128i *t = (__m128i *)T_;
     const __m128i GapOpenScore = _mm_set1_epi16(gapOpenScore_);
     const __m128i GapExtendScore = _mm_set1_epi16(gapExtendScore_);
@@ -274,12 +374,62 @@ unsigned BandedSmithWaterman::align(
         D = _mm_slli_si128(D, 1);
         D = _mm_insert_epi8(D, *(databaseBegin + i), 0);
     }
-    //std::cerr << "    D:" << epi8(D) << "   " << database << std::endl;
+#endif
     // iterate over all bases in the query
-    //std::cerr << std::endl << database << std::endl << query << std::endl;
     std::vector<char>::const_iterator queryCurrent = queryBegin;
     for (unsigned queryOffset = 0; queryEnd != queryCurrent; ++queryOffset, ++queryCurrent)
     {
+
+#if __AVX2__
+        __m256i G1, E1;
+        // get F[i-1, j] - extend
+        __m256i F1;
+        __m256i TF;
+        __m256i newF;
+
+        __m256i TG;
+        __m256i newG;
+
+        G1 = _mm256_alignr_epi8(G, _mm256_permute2x128_si256(G, G, _MM_SHUFFLE(0, 0, 2, 0)), 14);
+        E1 = _mm256_alignr_epi8(E, _mm256_permute2x128_si256(E, E, _MM_SHUFFLE(0, 0, 2, 0)), 14);
+        F1 = _mm256_alignr_epi8(F, _mm256_permute2x128_si256(F, F, _MM_SHUFFLE(0, 0, 2, 0)), 14);
+        F1 = _mm256_sub_epi16(F1, GapExtendScore);
+
+        max3_(E1, G1, F1, GapOpenScore, GapExtendScore, &newF, &TF, initialValue_);
+        max3_(E, G, F, &newG, &TG);
+
+        __m256i TE = _mm256_setzero_si256();
+
+        // add the match/mismatch score
+        // load the query base in all 8 values of the register
+        __m256i Q = _mm256_set1_epi16(*queryCurrent);
+        // shift the database by 1 byte to the left and add the new base
+        D = _mm256_alignr_epi8(D, _mm256_permute2x128_si256(D, D, _MM_SHUFFLE(0, 0, 2, 0)), 14);
+        D = _mm256_insert_epi16(D, *(databaseBegin + queryOffset + WIDEST_GAP_SIZE - 1), 0);
+
+        // compare query and database. 0xff if different (that also the sign bits)
+        const __m256i B = _mm256_andnot_si256(_mm256_cmpeq_epi16(Q, D), ONE);
+
+        // set match/mismatch scores, according to comparison
+        const __m256i Match = _mm256_andnot_si256(B, _mm256_set1_epi16(matchScore_));
+        const __m256i Mismatch = _mm256_and_si256(B, _mm256_set1_epi16(mismatchScore_));
+        // add the match/mismatch scored to HH
+        const __m256i W = _mm256_add_epi16(Match, Mismatch);
+
+        newG = _mm256_add_epi16(newG, _mm256_slli_epi16(B, 8));
+        newG = _mm256_add_epi16(newG, W);
+
+        // E[i,j] = max(G[i, j-1] - open, E[i, j-1] - extend, F[i, j-1] - open)
+        __m256i tmpNewG = _mm256_sub_epi16(newG, GapOpenScore);
+        __m256i tmpNewF = _mm256_sub_epi16(newF, GapOpenScore);
+        max2_(tmpNewG, tmpNewF, gapExtendScore_, &E, &TE, initialValue_);
+
+        G = newG;
+        F = newF;
+        _mm256_store_si256(t++, TG);
+        _mm256_store_si256(t++, TE);
+        _mm256_store_si256(t++, TF);
+#else
         __m128i tmp0[2], tmp1[2], tmp2[2];
         // F[i, j] = max(G[i-1, j] - open, E[i-1, j] - open, F[i-1, j] - extend)
         // G[i-1, j] and E[i-1, j]
@@ -462,112 +612,73 @@ unsigned BandedSmithWaterman::align(
         _mm_store_si128(t++, TG);
         _mm_store_si128(t++, TE);
         _mm_store_si128(t++, TF);
-#if 0
-        std::cerr << (boost::format("%2d  G:") % (queryOffset+1)).str();
-        for (unsigned j = 0; j < queryOffset; ++j)
-        {
-            std::cerr << " 0";
-        }
-        std::cerr << G[1] << G[0] << std::endl;
-        std::cerr << (boost::format("%2d TG:") % (queryOffset+1)).str();
-        for (unsigned j = 0; j < queryOffset; ++j)
-        {
-            std::cerr << " 0";
-        }
-        std::cerr << epi8(TG) << std::endl;
-        std::cerr << (boost::format("%2d  E:") % (queryOffset+1)).str();
-        for (unsigned j = 0; j < queryOffset; ++j)
-        {
-            std::cerr << " 0";
-        }
-        std::cerr << E[1] << E[0] << std::endl;
-        std::cerr << (boost::format("%2d TE:") % (queryOffset+1)).str();
-        for (unsigned j = 0; j < queryOffset; ++j)
-        {
-            std::cerr << " 0";
-        }
-        std::cerr << epi8(TE) << std::endl;
-        std::cerr << (boost::format("%2d  F:") % (queryOffset+1)).str();
-        for (unsigned j = 0; j < queryOffset; ++j)
-        {
-            std::cerr << " 0";
-        }
-        std::cerr << F[1] << F[0] << std::endl;
-        std::cerr << (boost::format("%2d TF:") % (queryOffset+1)).str();
-        for (unsigned j = 0; j < queryOffset; ++j)
-        {
-            std::cerr << " 0";
-        }
-        std::cerr << epi8(TF) << std::endl;
 #endif
     }
     // find the max of E, F and G at the end
+#if __AVX2__
+    short max = _mm256_extract_epi16(G, 15) - 1;
+#else
     short max = _mm_extract_epi16(G[1], 7) - 1;
+#endif
+
     int ii = querySize - 1;
     int jj = ii;
     unsigned maxType = 0;
+#if __AVX2__
+    __m256i TT, TMax;
+    max3_(E, G, F, &TMax, &TT);
+
+    int16_t TMaxS[16], TTS[16];
+    _mm256_store_si256((__m256i *) TMaxS, TMax);
+    _mm256_store_si256((__m256i *) TTS, TT);
+
+    for(unsigned j = 16; 0 < j; --j) {
+        const short value = TMaxS[j - 1];
+        if(value > max)
+        {
+            max = value;
+            jj = j - 1;
+            maxType = (short) TTS[j - 1];
+        }
+    }
+#else
     __m128i *TT[] = {G, E, F};
     for (unsigned int k = 0; 2 > k; ++k)
     {
         const unsigned int kk = (k + 1) % 2;
-        //std:: cerr << "kk = " << kk << ", max = " << max << std::endl;
-        //std::cerr << "type 0: " << TT[0][kk] << std::endl;
-        //std::cerr << "type 1: " << TT[1][kk] << std::endl;
-        //std::cerr << "type 2: " << TT[2][kk] << std::endl;
+
         for (unsigned j = 8; 0 < j; --j)
         {
-            //std::cerr << "j = " << j;
             for (unsigned type = 0; 3 > type; ++type)
             {
                 const short value = _mm_extract_epi16(TT[type][kk], 7);
-                //std::cerr << ", type = " << type << ", value = " << value;
                 TT[type][kk] = _mm_slli_si128(TT[type][kk], 2);
                 if (value > max)
                 {
-                    //std::cerr << std::endl << "max = " << max << ", value = " << value<< ", j = "  << j<< ", kk = "  << kk << std::endl;
                     max = value;
                     jj = 8 * kk + j - 1;
                     maxType = type;
                 }
             }
-            //std::cerr << std::endl;
         }
     }
-    //std::cerr << (boost::format("ii = %d, jj = %d, max = %d, maxType = %d") % (ii + 1) % jj % max % maxType).str() << std::endl;
+#endif
     const int jjIncrement[] = {0, 1, -1};
     const int iiIncrement[] = {-1, 0, -1};
     const Cigar::OpCode opCodes[] = {Cigar::ALIGN, Cigar::DELETE, Cigar::INSERT};
     unsigned opLength = 0;
-    //std::string newDatabase;
-    //std::string newQuery;
-    //std::cerr << std::endl << "building CIGAR" << std::endl;
     if (jj > 0)
     {
         cigar.addOperation(jj, Cigar::DELETE);
     }
     while(ii >= 0 && jj >= 0 && jj <= 15)
     {
-#if 0
-        if (0 == maxType)
-        {
-            newDatabase.push_back(database[ii + 15 - jj]);
-            newQuery.push_back(query[ii]);
-        }
-        else if(1 == maxType)
-        {
-            newDatabase.push_back(database[ii + 15 - jj]);
-            newQuery.push_back('-');
-        }
-        else if(2 == maxType)
-        {
-            newDatabase.push_back('-');
-            newQuery.push_back(query[ii]);
-        }
-#endif
         ++opLength;
+#if __AVX2__
+        const unsigned nextMaxType = T_[(ii * 3 + maxType) * sizeof(__m256i) + (jj * 2)];
+#else
         const unsigned nextMaxType = T_[(ii * 3 + maxType) * sizeof(__m128i) + jj];
-        //std::cerr << (boost::format("ii = %d, jj = %d, maxType = %d, nextMaxType = %d, opLength = %d") %
-        //              ii % jj % maxType %nextMaxType % opLength ).str() << std::endl;
+#endif
         if (nextMaxType != maxType)
         {
             cigar.addOperation(opLength, opCodes[maxType]);
@@ -589,20 +700,11 @@ unsigned BandedSmithWaterman::align(
         opLength = 0;
     }
     assert(0 == opLength);
-    //descriptor.push_back(d[maxType]);
     unsigned ret = trimTailIndels(cigar, originalCigarSize);
     std::reverse(cigar.begin() + originalCigarSize, cigar.end());
     trimTailIndels(cigar, originalCigarSize);
     removeAdjacentIndels(cigar, originalCigarSize);
     return ret;
-    //std::cerr << std::endl << "CIGAR: " << cigar.toString() << std::endl;
-    //std::reverse(newDatabase.begin(), newDatabase.end());
-    //std::reverse(newQuery.begin(), newQuery.end());
-    //std::cerr << "       " << descriptor << std::endl;
-    //std::cerr << database << std::endl;
-    //std::cerr << "       " << query << std::endl;
-    //std::cerr << "       " << newQuery << std::endl;
-    //std::cerr << "       " << newDatabase << std::endl;
 }
 
 std::string epi8(__m128i v)
