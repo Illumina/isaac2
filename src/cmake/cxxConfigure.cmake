@@ -136,9 +136,9 @@ set(iSAAC_DEP_LIB ${iSAAC_DEP_LIB} "${LIBEXSLT_LIBRARIES}" "${LIBXSLT_LIBRARIES}
 
 if(NOT iSAAC_AVX2)
   set(iSAAC_VECTORIZATION "-msse2")
-else(iSAAC_AVX2)
+else(NOT iSAAC_AVX2)
   set(iSAAC_VECTORIZATION "-mavx2")
-endif(iSAAC_AVX2)
+endif(NOT iSAAC_AVX2)
 
 set (CMAKE_CXX_FLAGS "$ENV{CXX_FLAGS} $ENV{CXXFLAGS} -fopenmp ${iSAAC_VECTORIZATION} -Wall -Wextra -Wunused -Wno-long-long -Wsign-compare -Wpointer-arith " CACHE STRING "g++ flags" FORCE)
 #set (CMAKE_CXX_FLAGS_DEBUG "-O0 -g -pg -std=c++0x -fprofile-arcs -ftest-coverage -D_GLIBCXX_DEBUG" CACHE STRING "g++ flags" FORCE)
